@@ -1,0 +1,5 @@
+appId: host.exp.exponent # This is the default ID for Expo Go
+---
+- launchApp
+- openLink: "exp://127.0.0.1:8081" 
+- assertVisible: "Hello World!"
