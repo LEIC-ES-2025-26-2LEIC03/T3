@@ -78,3 +78,15 @@ describe('User Story 1 - Log a Workout Session', () => {
   });
 
 });
+
+describe('User Story 2 - Future Feature', () => {
+
+  it('AT-2A-01: user sees message when trying to finish workout without exercises', async () => {
+    renderWorkoutScreen();
+
+    fireEvent.press(screen.getByText('Finish Workout'));
+
+    expect(await screen.findByText('Please add at least one exercise')).toBeTruthy();
+  });
+
+});
