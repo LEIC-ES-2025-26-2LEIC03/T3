@@ -6,17 +6,17 @@ import {
   TouchableOpacity,
   StyleSheet,
   Alert,
-  TextInput,
   KeyboardAvoidingView,
   Platform,
 } from 'react-native';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import ExerciseCard from '../components/ExerciseCard';
 import ExercisePicker from '../components/ExercisePicker';
 import { generateId } from '../utils/id';
 
 export default function WorkoutLogger({ navigation }) {
-  const [workoutName, setWorkoutName] = useState('My Workout');
+  const [workoutName] = useState('My Workout');
   const [exercises, setExercises] = useState([]);
   const [pickerVisible, setPickerVisible] = useState(false);
   const [errorMsg, setErrorMsg] = useState('');
@@ -74,7 +74,10 @@ export default function WorkoutLogger({ navigation }) {
     };
 
     try {
-      await saveWorkout(workout);
+      const existing = await AsyncStorage.getItem('workouts');
+      const workouts = existing ? JSON.parse(existing) : [];
+      workouts.push(workout);
+      await AsyncStorage.setItem('workouts', JSON.stringify(workouts));
       navigation.replace('WorkoutHistory');
     } catch (e) {
       Alert.alert('Error', 'Could not save workout. Please try again.');
@@ -136,7 +139,7 @@ export default function WorkoutLogger({ navigation }) {
               <Text style={styles.emptyIcon}>🏋️</Text>
               <Text style={styles.emptyTitle}>No exercises yet</Text>
               <Text style={styles.emptySubtitle}>
-                Tap "Add Exercise" to start logging your workout
+                Tap {'"'}Add Exercise{'"'} to start logging your workout
               </Text>
             </View>
           )}
