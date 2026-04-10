@@ -140,6 +140,8 @@ Example:
 </p>
 -->
 
+![UML](docs/UML.png)
+
 
 ## Architecture and Design
 <!--
