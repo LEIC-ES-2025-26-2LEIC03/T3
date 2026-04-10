@@ -1,92 +1,94 @@
-// ─── Workout Reviews Acceptance Tests ─────────────────────────────────────
-// US-11 Submit Rating    | US-12 Edit Rating      | US-13 Delete Rating
-// US-14 View Own Review  | US-15 Average Rating   | US-17 Review Prompt
-// US-18 Rating in History | US-19 Unrated State
-//
-// These are acceptance tests written ahead of implementation (TDD).
-// They will intentionally FAIL until the features are built.
-// ──────────────────────────────────────────────────────────────────────────
 
-// TODO: replace these imports with your actual service/screen paths once built
-// e.g. import { submitReview, editReview, deleteReview } from '../src/services/reviewService';
-// e.g. import { getWorkoutHistory } from '../src/services/workoutService';
-
-// ── US-11: Submit a Star Rating for an Exercise ───────────────────────────
+// ── US-01: Submit a Star Rating for an Exercise ───────────────────────────
 
 describe('US-11 | Submit a Star Rating for an Exercise', () => {
 
   test('should save a rating when the user selects a value between 1 and 5', async () => {
     // Arrange
-    const reviewData = { sessionId: 'session-001', exerciseId: 'exercise-bench-press', stars: 4 };
+    const reviewData = {
+      sessionId: 'session-001',
+      exerciseId: 'exercise-bench-press',
+      stars: 4,
+    };
 
     // Act
-    // const result = await submitReview(reviewData);
+    const result = await submitReview(reviewData);
 
     // Assert
-    // expect(result.success).toBe(true);
-    // expect(result.review.stars).toBe(4);
-    // expect(result.review.exerciseId).toBe('exercise-bench-press');
-    // expect(result.review.sessionId).toBe('session-001');
-    expect(true).toBe(true); // placeholder — remove when implemented
+    expect(result.success).toBe(true);
+    expect(result.review.stars).toBe(4);
+    expect(result.review.exerciseId).toBe('exercise-bench-press');
+    expect(result.review.sessionId).toBe('session-001');
   });
 
   test('should reject a rating of 0', async () => {
     // Arrange
-    const invalidReview = { sessionId: 'session-001', exerciseId: 'exercise-bench-press', stars: 0 };
+    const invalidReview = {
+      sessionId: 'session-001',
+      exerciseId: 'exercise-bench-press',
+      stars: 0,
+    };
 
     // Act
-    // const result = await submitReview(invalidReview);
+    const result = await submitReview(invalidReview);
 
     // Assert
-    // expect(result.success).toBe(false);
-    // expect(result.error).toMatch(/stars.*invalid|rating.*out of range/i);
-    expect(true).toBe(true); // placeholder — remove when implemented
+    expect(result.success).toBe(false);
+    expect(result.error).toMatch(/stars.*invalid|rating.*out of range/i);
   });
 
   test('should reject a rating greater than 5', async () => {
     // Arrange
-    const invalidReview = { sessionId: 'session-001', exerciseId: 'exercise-bench-press', stars: 6 };
+    const invalidReview = {
+      sessionId: 'session-001',
+      exerciseId: 'exercise-bench-press',
+      stars: 6,
+    };
 
     // Act
-    // const result = await submitReview(invalidReview);
+    const result = await submitReview(invalidReview);
 
     // Assert
-    // expect(result.success).toBe(false);
-    // expect(result.error).toMatch(/stars.*invalid|rating.*out of range/i);
-    expect(true).toBe(true); // placeholder — remove when implemented
+    expect(result.success).toBe(false);
+    expect(result.error).toMatch(/stars.*invalid|rating.*out of range/i);
   });
 
   test('should reject a non-integer rating', async () => {
     // Arrange
-    const invalidReview = { sessionId: 'session-001', exerciseId: 'exercise-bench-press', stars: 3.5 };
+    const invalidReview = {
+      sessionId: 'session-001',
+      exerciseId: 'exercise-bench-press',
+      stars: 3.5,
+    };
 
     // Act
-    // const result = await submitReview(invalidReview);
+    const result = await submitReview(invalidReview);
 
     // Assert
-    // expect(result.success).toBe(false);
-    // expect(result.error).toMatch(/stars.*integer|whole number/i);
-    expect(true).toBe(true); // placeholder — remove when implemented
+    expect(result.success).toBe(false);
+    expect(result.error).toMatch(/stars.*integer|whole number/i);
   });
 
   test('should only allow one review per exercise per session', async () => {
-    // Arrange — first review already exists
-    const sessionId = 'session-001';
-    const exerciseId = 'exercise-bench-press';
-    // const _ = await submitReview({ sessionId, exerciseId, stars: 3 });
+    // Arrange — submit first review
+    const reviewData = {
+      sessionId: 'session-001',
+      exerciseId: 'exercise-bench-press',
+      stars: 3,
+    };
+    await submitReview(reviewData);
 
-    // Act — attempt a second submission
-    // const result = await submitReview({ sessionId, exerciseId, stars: 5 });
+    // Act — attempt a second submission for the same exercise in the same session
+    const result = await submitReview({ ...reviewData, stars: 5 });
 
     // Assert
-    // expect(result.success).toBe(false);
-    // expect(result.error).toMatch(/already reviewed|duplicate/i);
-    expect(true).toBe(true); // placeholder — remove when implemented
+    expect(result.success).toBe(false);
+    expect(result.error).toMatch(/already reviewed|duplicate/i);
   });
 
 });
 
-// ── US-12: Edit a Star Rating ─────────────────────────────────────────────
+// ── US-02: Edit a Star Rating ─────────────────────────────────────────────
 
 describe('US-12 | Edit a Star Rating', () => {
 
@@ -95,12 +97,11 @@ describe('US-12 | Edit a Star Rating', () => {
     const reviewId = 'review-001';
 
     // Act
-    // const result = await editReview(reviewId, { stars: 2 });
+    const result = await editReview(reviewId, { stars: 2 });
 
     // Assert
-    // expect(result.success).toBe(true);
-    // expect(result.review.stars).toBe(2);
-    expect(true).toBe(true); // placeholder — remove when implemented
+    expect(result.success).toBe(true);
+    expect(result.review.stars).toBe(2);
   });
 
   test('should not allow editing a review from a session that has been deleted', async () => {
@@ -108,17 +109,16 @@ describe('US-12 | Edit a Star Rating', () => {
     const orphanedReviewId = 'review-orphaned';
 
     // Act
-    // const result = await editReview(orphanedReviewId, { stars: 5 });
+    const result = await editReview(orphanedReviewId, { stars: 5 });
 
     // Assert
-    // expect(result.success).toBe(false);
-    // expect(result.error).toMatch(/session.*not found|review.*invalid/i);
-    expect(true).toBe(true); // placeholder — remove when implemented
+    expect(result.success).toBe(false);
+    expect(result.error).toMatch(/session.*not found|review.*invalid/i);
   });
 
 });
 
-// ── US-13: Delete a Star Rating ───────────────────────────────────────────
+// ── US-03: Delete a Star Rating ───────────────────────────────────────────
 
 describe('US-13 | Delete a Star Rating', () => {
 
@@ -127,13 +127,12 @@ describe('US-13 | Delete a Star Rating', () => {
     const reviewId = 'review-001';
 
     // Act
-    // const result = await deleteReview(reviewId);
+    const result = await deleteReview(reviewId);
 
     // Assert
-    // expect(result.success).toBe(true);
-    // const review = await getReview(reviewId);
-    // expect(review).toBeNull();
-    expect(true).toBe(true); // placeholder — remove when implemented
+    expect(result.success).toBe(true);
+    const review = await getReview(reviewId);
+    expect(review).toBeNull();
   });
 
   test('should return an error when deleting a review that does not exist', async () => {
@@ -141,17 +140,16 @@ describe('US-13 | Delete a Star Rating', () => {
     const nonExistentReviewId = 'review-ghost';
 
     // Act
-    // const result = await deleteReview(nonExistentReviewId);
+    const result = await deleteReview(nonExistentReviewId);
 
     // Assert
-    // expect(result.success).toBe(false);
-    // expect(result.error).toMatch(/not found/i);
-    expect(true).toBe(true); // placeholder — remove when implemented
+    expect(result.success).toBe(false);
+    expect(result.error).toMatch(/not found/i);
   });
 
 });
 
-// ── US-14: View Your Own Review for an Exercise ───────────────────────────
+// ── US-04: View Your Own Review for an Exercise ───────────────────────────
 
 describe('US-14 | View Your Own Review', () => {
 
@@ -161,13 +159,12 @@ describe('US-14 | View Your Own Review', () => {
     const exerciseId = 'exercise-bench-press';
 
     // Act
-    // const review = await getReviewForExercise(sessionId, exerciseId);
+    const review = await getReviewForExercise(sessionId, exerciseId);
 
     // Assert
-    // expect(review).toBeDefined();
-    // expect(review.stars).toBeGreaterThanOrEqual(1);
-    // expect(review.stars).toBeLessThanOrEqual(5);
-    expect(true).toBe(true); // placeholder — remove when implemented
+    expect(review).toBeDefined();
+    expect(review.stars).toBeGreaterThanOrEqual(1);
+    expect(review.stars).toBeLessThanOrEqual(5);
   });
 
   test('should return null when no review exists for that exercise in that session', async () => {
@@ -176,31 +173,29 @@ describe('US-14 | View Your Own Review', () => {
     const exerciseId = 'exercise-never-reviewed';
 
     // Act
-    // const review = await getReviewForExercise(sessionId, exerciseId);
+    const review = await getReviewForExercise(sessionId, exerciseId);
 
     // Assert
-    // expect(review).toBeNull();
-    expect(true).toBe(true); // placeholder — remove when implemented
+    expect(review).toBeNull();
   });
 
 });
 
-// ── US-15: See the Average Rating for an Exercise ─────────────────────────
+// ── US-05: See the Average Rating for an Exercise ─────────────────────────
 
 describe('US-15 | Average Rating Across Sessions', () => {
 
   test('should return the mean star rating across all sessions where the exercise was reviewed', async () => {
     // Arrange
+    // session-001 → 4 stars, session-002 → 2 stars, expected avg → 3.0
     const exerciseId = 'exercise-bench-press';
-    // sessions-001 → 4 stars, session-002 → 2 stars → avg 3.0
 
     // Act
-    // const result = await getAverageRating(exerciseId);
+    const result = await getAverageRating(exerciseId);
 
     // Assert
-    // expect(result.averageStars).toBe(3.0);
-    // expect(result.reviewCount).toBe(2);
-    expect(true).toBe(true); // placeholder — remove when implemented
+    expect(result.averageStars).toBe(3.0);
+    expect(result.reviewCount).toBe(2);
   });
 
   test('should return null for average rating when the exercise has never been reviewed', async () => {
@@ -208,17 +203,16 @@ describe('US-15 | Average Rating Across Sessions', () => {
     const exerciseId = 'exercise-no-reviews';
 
     // Act
-    // const result = await getAverageRating(exerciseId);
+    const result = await getAverageRating(exerciseId);
 
     // Assert
-    // expect(result.averageStars).toBeNull();
-    // expect(result.reviewCount).toBe(0);
-    expect(true).toBe(true); // placeholder — remove when implemented
+    expect(result.averageStars).toBeNull();
+    expect(result.reviewCount).toBe(0);
   });
 
 });
 
-// ── US-17: Prompt the User to Rate After Finishing a Session ──────────────
+// ── US-06: Prompt the User to Rate After Finishing a Session ──────────────
 
 describe('US-17 | Review Prompt After Session', () => {
 
@@ -227,35 +221,35 @@ describe('US-17 | Review Prompt After Session', () => {
     const sessionId = 'session-001';
 
     // Act
-    // const result = await finishSession(sessionId);
+    const result = await finishSession(sessionId);
 
     // Assert
-    // expect(result.reviewPrompts).toBeDefined();
-    // expect(Array.isArray(result.reviewPrompts)).toBe(true);
-    // result.reviewPrompts.forEach(prompt => {
-    //   expect(prompt.exerciseId).toBeDefined();
-    //   expect(prompt.exerciseName).toBeDefined();
-    // });
-    expect(true).toBe(true); // placeholder — remove when implemented
+    expect(result.reviewPrompts).toBeDefined();
+    expect(Array.isArray(result.reviewPrompts)).toBe(true);
+    result.reviewPrompts.forEach(prompt => {
+      expect(prompt.exerciseId).toBeDefined();
+      expect(prompt.exerciseName).toBeDefined();
+    });
   });
 
   test('should not include a review prompt for exercises the user already rated mid-session', async () => {
-    // Arrange
+    // Arrange — session where bench press was already reviewed before finishing
     const sessionId = 'session-already-reviewed';
     const reviewedExerciseId = 'exercise-bench-press';
 
     // Act
-    // const result = await finishSession(sessionId);
+    const result = await finishSession(sessionId);
 
     // Assert
-    // const alreadyPrompted = result.reviewPrompts.find(p => p.exerciseId === reviewedExerciseId);
-    // expect(alreadyPrompted).toBeUndefined();
-    expect(true).toBe(true); // placeholder — remove when implemented
+    const alreadyPrompted = result.reviewPrompts.find(
+      p => p.exerciseId === reviewedExerciseId
+    );
+    expect(alreadyPrompted).toBeUndefined();
   });
 
 });
 
-// ── US-18: Star Rating Visible in Workout History ─────────────────────────
+// ── US-07: Star Rating Visible in Workout History ─────────────────────────
 
 describe('US-18 | Rating Displayed in Workout History', () => {
 
@@ -264,14 +258,13 @@ describe('US-18 | Rating Displayed in Workout History', () => {
     const userId = 'user-001';
 
     // Act
-    // const history = await getWorkoutHistory(userId);
+    const history = await getWorkoutHistory(userId);
 
     // Assert
-    // const session = history[0];
-    // const reviewedExercise = session.exercises.find(e => e.review);
-    // expect(reviewedExercise.review.stars).toBeGreaterThanOrEqual(1);
-    // expect(reviewedExercise.review.stars).toBeLessThanOrEqual(5);
-    expect(true).toBe(true); // placeholder — remove when implemented
+    const session = history[0];
+    const reviewedExercise = session.exercises.find(e => e.review);
+    expect(reviewedExercise.review.stars).toBeGreaterThanOrEqual(1);
+    expect(reviewedExercise.review.stars).toBeLessThanOrEqual(5);
   });
 
   test('should show no rating for exercises that were not reviewed', async () => {
@@ -279,18 +272,17 @@ describe('US-18 | Rating Displayed in Workout History', () => {
     const userId = 'user-001';
 
     // Act
-    // const history = await getWorkoutHistory(userId);
+    const history = await getWorkoutHistory(userId);
 
     // Assert
-    // const session = history[0];
-    // const unreviewedExercise = session.exercises.find(e => !e.review);
-    // expect(unreviewedExercise.review).toBeNull();
-    expect(true).toBe(true); // placeholder — remove when implemented
+    const session = history[0];
+    const unreviewedExercise = session.exercises.find(e => !e.review);
+    expect(unreviewedExercise.review).toBeNull();
   });
 
 });
 
-// ── US-19: Exercises Without a Rating Have a Clear Unrated State ──────────
+// ── US-08: Exercises Without a Rating Have a Clear Unrated State ──────────
 
 describe('US-19 | Unrated Exercise State', () => {
 
@@ -300,12 +292,11 @@ describe('US-19 | Unrated Exercise State', () => {
     const exerciseId = 'exercise-never-reviewed';
 
     // Act
-    // const exercise = await getExerciseInSession(sessionId, exerciseId);
+    const exercise = await getExerciseInSession(sessionId, exerciseId);
 
     // Assert
-    // expect(exercise.review).toBeNull();
-    // expect(exercise.isReviewed).toBe(false);
-    expect(true).toBe(true); // placeholder — remove when implemented
+    expect(exercise.review).toBeNull();
+    expect(exercise.isReviewed).toBe(false);
   });
 
   test('should mark the exercise as reviewed once a rating is submitted', async () => {
@@ -314,13 +305,12 @@ describe('US-19 | Unrated Exercise State', () => {
     const exerciseId = 'exercise-bench-press';
 
     // Act
-    // await submitReview({ sessionId, exerciseId, stars: 5 });
-    // const exercise = await getExerciseInSession(sessionId, exerciseId);
+    await submitReview({ sessionId, exerciseId, stars: 5 });
+    const exercise = await getExerciseInSession(sessionId, exerciseId);
 
     // Assert
-    // expect(exercise.isReviewed).toBe(true);
-    // expect(exercise.review.stars).toBe(5);
-    expect(true).toBe(true); // placeholder — remove when implemented
+    expect(exercise.isReviewed).toBe(true);
+    expect(exercise.review.stars).toBe(5);
   });
 
 });
