@@ -282,6 +282,8 @@ At this phase, instead of a complete user story, you can simply implement a smal
 
 #### v0 — Prototype
 
+![Prototype](docs/prototype.png)
+
 
 The prototype implements **live workout logging** — the most characteristic 
 and central interaction of the app. The user browses a built-in exercise 
