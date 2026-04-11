@@ -133,13 +133,66 @@ At the end, it is good to add a rough indication of the value of the user story 
 <!-- 
 To better understand the context of the software system, it is useful to have a simple UML class diagram with all and only the key concepts (names, attributes) and relationships involved of the problem domain addressed by your app. 
 Also provide a short textual description of each concept (domain class). 
+![UML diagram](architecture/UML.png)
 
-Example:
- <p align="center" justify="center">
-  <img src="https://github.com/FEUP-LEIC-ES-2022-23/templates/blob/main/images/DomainModel.png"/>
-</p>
 -->
+Domain Class Descriptions
+User
 
+Represents an individual using the application.
+Stores authentication data and basic physical attributes, along with a high-level fitness goal.
+Acts as the root entity that owns workout plans and progress records.
+
+WorkoutPlan
+
+Defines a structured training plan created by the user.
+Organizes workouts into predefined days (WorkoutDay) and can optionally group multiple workout sessions.
+
+WorkoutSession
+
+Represents a concrete workout performed (or scheduled) on a specific date.
+Can exist independently or be associated with a WorkoutPlan.
+Serves as the main unit for tracking actual workout execution and performance.
+
+WorkoutDay
+
+Represents a training day within a weekly structure (e.g., Monday, Push Day).
+Used both in planning (inside WorkoutPlan) and execution context (inside WorkoutSession).
+Contains the list of exercises to be performed.
+
+Exercise
+
+Represents a predefined exercise (e.g., Bench Press, Squat).
+Defines general attributes such as name and target muscle group.
+Acts as a reference entity reused across workouts.
+
+WorkoutExercise
+
+Represents the inclusion of a specific exercise within a workout day.
+Stores execution parameters such as sets, repetitions, and weight.
+Acts as a bridge between WorkoutDay and Exercise.
+
+PerformanceLog
+
+Captures performance data recorded during a workout session at a specific moment.
+Groups detailed set-level data for a given exercise or session segment.
+
+SetEntry
+
+Represents a single set performed during an exercise.
+Stores granular data such as repetitions and weight used.
+Provides the lowest-level detail for performance tracking.
+
+ProgressRecord
+
+Represents a collection of user progress data over time.
+Acts as a container for body-related measurements and historical tracking.
+
+BodyMetricEntry
+
+Represents a snapshot of the user’s physical metrics at a given date.
+Includes attributes such as weight and body fat percentage.
+Used to monitor long-term progress.
 
 ## Architecture and Design
 <!--
@@ -149,7 +202,7 @@ A well written architecture document is brief and reduces the amount of time it 
 
 To document the architecture requires describing the decomposition of the system in their parts (high-level components) and the key behaviors and collaborations between them. 
 
-In this section you should start by briefly describing the components of the project and their interrelations. You should describe how you solved typical problems you may have encountered, pointing to well-known architectural and design patterns, if applicable.
+In this section you should start by briefly describing the components of the project and their interrelations. You should describe how you solved typical problems you may have encountered, pointing to well-known architectural and design patterns, if applicable.~
 -->
 
 
@@ -161,7 +214,7 @@ It can be beneficial to present the system in a horizontal decomposition, defini
 
 Example of _UML package diagram_ showing a _logical view_ of the Eletronic Ticketing System (to be accompanied by a short description of each package):
 
-![LogicalView](https://user-images.githubusercontent.com/9655877/160585416-b1278ad7-18d7-463c-b8c6-afa4f7ac7639.png)
+![LogicalView](architecture/LogicalArchitecture.png)
 -->
 
 
@@ -173,7 +226,7 @@ It should describe also the technologies considered and justify the selections m
 
 Example of _UML deployment diagram_ showing a _deployment view_ of the Eletronic Ticketing System (please notice that, instead of software components, one should represent their physical/executable manifestations for deployment, called artifacts in UML; the diagram should be accompanied by a short description of each node and artifact):
 
-![DeploymentView](https://user-images.githubusercontent.com/9655877/160592491-20e85af9-0758-4e1e-a704-0db1be3ee65d.png)
+![LogicalView](architecture/PhysicalArchitecture.png)
 -->
 
 
