@@ -5,7 +5,6 @@
 | Workflow | Trigger | What it does |
 |---------|---------|-------------|
 | `ci.yml` | Push / PR to `main`, `develop` | Lint (ESLint) + unit tests + coverage upload |
-| `code-quality.yml` | Push / PR to `main`, `develop` | SonarCloud scan + coverage threshold enforcement |
 | `pr-validation.yml` | Every PR | Validates PR title, branch name, CHANGELOG update |
 | `release-android.yml` | Push tag `v*.*.*` | Builds signed APK + creates GitHub Release |
 | `dependency-audit.yml` | Every Monday / manual | npm security audit + outdated packages |
@@ -24,12 +23,6 @@ Go to your repo → **Settings → Secrets and variables → Actions** and add:
 | `KEY_ALIAS` | Your key alias |
 | `KEY_PASSWORD` | Your key password |
 
-### For SonarCloud (code quality)
-| Secret | Value |
-|--------|-------|
-| `SONAR_TOKEN` | Token from [sonarcloud.io](https://sonarcloud.io) → My Account → Security |
-
-> `GITHUB_TOKEN` is provided automatically by GitHub — no setup needed.
 
 ---
 

@@ -62,24 +62,24 @@ jobs:
         run: |
           VERSION=${GITHUB_REF#refs/tags/}
           cp android/app/build/outputs/apk/release/app-release.apk \
-             android/app/build/outputs/apk/release/IronLog-${VERSION}.apk
+             android/app/build/outputs/apk/release/W8-${VERSION}.apk
 
       - name: Upload APK artifact
         uses: actions/upload-artifact@v4
         with:
           name: IronLog-APK
-          path: android/app/build/outputs/apk/release/IronLog-*.apk
+          path: android/app/build/outputs/apk/release/W8-*.apk
           retention-days: 30
 
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v2
         with:
           tag_name: ${{ github.ref_name }}
-          name: IronLog ${{ github.ref_name }}
+          name: W8 ${{ github.ref_name }}
           body_path: CHANGELOG.md
           draft: false
           prerelease: ${{ contains(github.ref_name, '-beta') || contains(github.ref_name, '-alpha') }}
           files: |
-            android/app/build/outputs/apk/release/IronLog-*.apk
+            android/app/build/outputs/apk/release/W8-*.apk
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
