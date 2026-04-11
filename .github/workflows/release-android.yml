@@ -3,7 +3,7 @@ name: Android Build & Release
 on:
   push:
     tags:
-      - 'v*.*.*'   # triggers on v0.1.0, v1.0.0, etc.
+      - 'v*.*.*'
 
 jobs:
   build-apk:
@@ -47,7 +47,7 @@ jobs:
 
       - name: Decode keystore
         run: |
-        echo "${{ secrets.KEYSTORE_BASE64 }}" | base64 --decode > android/app/release.keystore
+          echo "${{ secrets.KEYSTORE_BASE64 }}" | base64 --decode > android/app/release.keystore
 
       - name: Build release APK
         working-directory: android
@@ -67,7 +67,7 @@ jobs:
       - name: Upload APK artifact
         uses: actions/upload-artifact@v4
         with:
-          name: IronLog-APK
+          name: W8-APK
           path: android/app/build/outputs/apk/release/W8-*.apk
           retention-days: 30
 
