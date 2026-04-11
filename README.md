@@ -127,68 +127,107 @@ For each user story you should write also the acceptance tests (textually in [Gh
 At the end, it is good to add a rough indication of the value of the user story to the customers (e.g. [MoSCoW](https://en.wikipedia.org/wiki/MoSCoW_method) method) and the team should add an estimation of the effort to implement it using points in a kind-of-a Fibonnacci scale (1,2,3,5,8,13,20,40, no idea).
 
 -->
+The app's requirements were gathered and documented as user stories in the
+GitHub Project, each labelled `user story`. Below is a concise summary of
+the main stories identified for this product.
+
+**Workout logging**
+
+Users can start a workout session, add exercises from the built-in library,
+and record sets with weight and reps. This is the core interaction the entire
+app is built around.
+
+**Exercise library**
+
+Users can browse a library of exercises filtered by muscle group or equipment,
+and select from it when building a workout.
+
+**Workout history**
+
+Users can view a log of all past workout sessions and see what exercises,
+sets, and weights were performed in each one.
+
+**Progress tracking**
+
+Users can see charts of their strength evolution over time for any exercise,
+including estimated 1RM and total volume per session.
+
+**Personal records**
+
+Users are notified when they beat a personal record during a workout session.
+
+**Rest timer**
+
+Users can use a configurable rest timer between sets that alerts them when
+rest time is up.
+
+**Workout templates**
+
+Users can save a workout as a template and reuse it in future sessions without
+rebuilding it from scratch.
 
 ### Domain model
 
 <!-- 
 To better understand the context of the software system, it is useful to have a simple UML class diagram with all and only the key concepts (names, attributes) and relationships involved of the problem domain addressed by your app. 
 Also provide a short textual description of each concept (domain class). 
-![UML diagram](architecture/UML.png)
+
 
 -->
-Domain Class Descriptions
-User
+![UML diagram](docs/architecture/UML.png)
+#### Domain Class Descriptions
+**User**
 
 Represents an individual using the application.
 Stores authentication data and basic physical attributes, along with a high-level fitness goal.
 Acts as the root entity that owns workout plans and progress records.
 
-WorkoutPlan
+**WorkoutPlan**
 
 Defines a structured training plan created by the user.
 Organizes workouts into predefined days (WorkoutDay) and can optionally group multiple workout sessions.
 
-WorkoutSession
+**WorkoutSession**
 
 Represents a concrete workout performed (or scheduled) on a specific date.
 Can exist independently or be associated with a WorkoutPlan.
 Serves as the main unit for tracking actual workout execution and performance.
 
-WorkoutDay
+**WorkoutDay**
 
 Represents a training day within a weekly structure (e.g., Monday, Push Day).
 Used both in planning (inside WorkoutPlan) and execution context (inside WorkoutSession).
 Contains the list of exercises to be performed.
 
-Exercise
+**Exercise**
 
 Represents a predefined exercise (e.g., Bench Press, Squat).
 Defines general attributes such as name and target muscle group.
 Acts as a reference entity reused across workouts.
 
-WorkoutExercise
+**WorkoutExercise**
 
 Represents the inclusion of a specific exercise within a workout day.
 Stores execution parameters such as sets, repetitions, and weight.
 Acts as a bridge between WorkoutDay and Exercise.
 
-PerformanceLog
+**PerformanceLog**
 
 Captures performance data recorded during a workout session at a specific moment.
 Groups detailed set-level data for a given exercise or session segment.
 
-SetEntry
+**SetEntry**
 
 Represents a single set performed during an exercise.
 Stores granular data such as repetitions and weight used.
 Provides the lowest-level detail for performance tracking.
 
-ProgressRecord
+**ProgressRecord**
 
 Represents a collection of user progress data over time.
 Acts as a container for body-related measurements and historical tracking.
 
-BodyMetricEntry
+**BodyMetricEntry**
 
 Represents a snapshot of the user’s physical metrics at a given date.
 Includes attributes such as weight and body fat percentage.
@@ -214,8 +253,9 @@ It can be beneficial to present the system in a horizontal decomposition, defini
 
 Example of _UML package diagram_ showing a _logical view_ of the Eletronic Ticketing System (to be accompanied by a short description of each package):
 
-![LogicalView](architecture/LogicalArchitecture.png)
 -->
+
+![LogicalView](docs/architecture/LogicalArchitecture.png)
 
 
 ### Physical architecture
@@ -226,8 +266,9 @@ It should describe also the technologies considered and justify the selections m
 
 Example of _UML deployment diagram_ showing a _deployment view_ of the Eletronic Ticketing System (please notice that, instead of software components, one should represent their physical/executable manifestations for deployment, called artifacts in UML; the diagram should be accompanied by a short description of each node and artifact):
 
-![LogicalView](architecture/PhysicalArchitecture.png)
 -->
+
+![LogicalView](docs/architecture/PhysicalArchitecture.png)
 
 
 ### Functional prototype
@@ -238,6 +279,31 @@ In this subsection please describe which feature, or part of it, you have implem
 
 At this phase, instead of a complete user story, you can simply implement a small part of a feature that demonstrates thay you can use the technology, for example, show a screen with the app credits (name and authors).
 -->
+
+#### v0 — Prototype
+
+
+The prototype implements **live workout logging** — the most characteristic 
+and central interaction of the app. The user browses a built-in exercise 
+library, adds exercises to an active workout session, and records multiple 
+sets per exercise with weight and reps.
+
+This feature was chosen because it represents the unique core loop of a 
+workout tracking app: everything else (history, progress charts, templates) 
+is built on top of this interaction. No generic app shares this as its 
+primary flow.
+
+**What works in this prototype:**
+- Browse a built-in exercise library and add exercises to the session
+- Add and remove sets per exercise
+- Enter weight and reps for each set
+- Remove exercises from the active workout
+
+**Known limitations:**
+- Workout cannot be saved yet — data is lost when the app is closed
+- Exercise library is limited — custom exercises cannot be created yet
+- Single screen only — no navigation to other views
+
 
 ## Project management
 <!--
@@ -262,6 +328,25 @@ You can find below information and references related with the project managemen
 -->
 
 ### Sprint 0
+
+#### Retrospective
+
+**Did well**
+- User stories follow the INVEST criteria
+- All team members contributed to the Product Backlog
+-
+
+**Do differently**
+- Start the prototype earlier in the Sprint
+- Set internal deadlines earlier that the actual deadline
+
+**Puzzles**
+- Unsure if our  backlog has enough items for the rest of the Sprints
+
+**Improvements for Sprint 1**
+- Write acceptance tests before implementing each feature
+- Refine  and order the backlog
+
 
 ### Sprint 1
 
