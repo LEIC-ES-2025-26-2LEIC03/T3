@@ -284,6 +284,8 @@ At this phase, instead of a complete user story, you can simply implement a smal
 
 ![Prototype](docs/prototype.png)
 
+> [Download v0 on GitHub Releases](https://github.com/LEIC-ES-2025-26-2LEIC03/T3/releases/tag/v0.1.0)
+
 
 The prototype implements **live workout logging** — the most characteristic 
 and central interaction of the app. The user browses a built-in exercise 
