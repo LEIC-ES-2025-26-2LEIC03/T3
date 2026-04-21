@@ -1,4 +1,4 @@
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useRef } from 'react';
 import { View, Text, ScrollView, StyleSheet, ActivityIndicator, Alert } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useFocusEffect } from '@react-navigation/native';
@@ -16,15 +16,22 @@ export default function HomeScreen({ navigation }) {
 
   const [templates, setTemplates] = useState([]);
   const [loading, setLoading] = useState(true);
+  // Track whether this is the very first load — subsequent focus events
+  // (e.g. returning from WorkoutLogger) should refresh silently, no spinner.
+  const hasLoadedOnce = useRef(false);
 
-  // Reload templates every time this screen is focused
-  // (covers: after creating/editing/deleting a template)
   useFocusEffect(
     useCallback(() => {
-      setLoading(true);
+      if (!hasLoadedOnce.current) {
+        // First mount: show spinner
+        setLoading(true);
+      }
       fetchTemplates()
         .then(setTemplates)
-        .finally(() => setLoading(false));
+        .finally(() => {
+          setLoading(false);
+          hasLoadedOnce.current = true;
+        });
     }, [])
   );
 
@@ -37,11 +44,9 @@ export default function HomeScreen({ navigation }) {
   };
 
   const handleUseTemplate = (template) => {
-    // DB templates: template.exercises are full objects
-    // Static templates: template.exercises are ID strings
     const exercises = typeof template.exercises[0] === 'string'
-      ? buildFromStatic(template.exercises)         // old static helper
-      : buildExercisesFromTemplate(template.exercises); // new db helper
+      ? buildFromStatic(template.exercises)
+      : buildExercisesFromTemplate(template.exercises);
 
     navigation.navigate('WorkoutLogger', {
       preloadedExercises: exercises,
@@ -72,7 +77,7 @@ export default function HomeScreen({ navigation }) {
   };
 
   return (
-    <SafeAreaView style={styles.safe}>
+    <SafeAreaView style={styles.safe} edges={['top']}>
       {/* ── Top bar ── */}
       <View style={styles.topBar}>
         <Text style={styles.logo}>
