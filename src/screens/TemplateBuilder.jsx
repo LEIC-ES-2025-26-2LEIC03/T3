@@ -1,10 +1,3 @@
-/**
- * TemplateBuilder.jsx  —  Create or edit a workout template
- *
- * Navigation params:
- *   templateId? — if provided, loads that template for editing
- */
-
 import React, { useState, useEffect, useCallback } from 'react';
 import {
   View,
