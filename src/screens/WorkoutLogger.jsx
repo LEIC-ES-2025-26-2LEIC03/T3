@@ -15,9 +15,14 @@ import ExerciseCard from '../components/ExerciseCard';
 import ExercisePicker from '../components/ExercisePicker';
 import { generateId } from '../utils/id';
 
-export default function WorkoutLogger({ navigation }) {
-  const [workoutName] = useState('My Workout');
-  const [exercises, setExercises] = useState([]);
+export default function WorkoutLogger({ navigation, route }) {
+  const {
+    preloadedExercises = [],
+    workoutName: initialName = 'My Workout',
+  } = route?.params ?? {};
+
+  const [workoutName] = useState(initialName);
+  const [exercises, setExercises] = useState(preloadedExercises);
   const [pickerVisible, setPickerVisible] = useState(false);
   const [errorMsg, setErrorMsg] = useState('');
   const [startTime] = useState(new Date());
@@ -49,13 +54,11 @@ export default function WorkoutLogger({ navigation }) {
   }, []);
 
   const handleFinishWorkout = async () => {
-    // Scenario 1B: No exercises
     if (exercises.length === 0) {
       setErrorMsg('Please add at least one exercise before saving.');
       return;
     }
 
-    // Build payload
     const workout = {
       id: generateId(),
       name: workoutName.trim() || 'Unnamed Workout',
@@ -95,10 +98,11 @@ export default function WorkoutLogger({ navigation }) {
       >
         {/* ── TOP BAR ── */}
         <View style={styles.topBar}>
-          <View style={styles.topLeft}>
-            <Text style={styles.workoutTitle}>
-              {workoutName}
-            </Text>
+          <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backBtn}>
+            <Text style={styles.backText}>Back</Text>
+          </TouchableOpacity>
+          <View style={styles.topCenter}>
+            <Text style={styles.workoutTitle}>{workoutName}</Text>
             <Text style={styles.workoutMeta}>
               {exercises.length} exercise{exercises.length !== 1 ? 's' : ''}
               {totalSets > 0 ? `  ·  ${totalSets} sets` : ''}
@@ -115,7 +119,7 @@ export default function WorkoutLogger({ navigation }) {
           contentContainerStyle={styles.scrollContent}
           keyboardShouldPersistTaps="handled"
         >
-          {/* Error banner (Scenario 1B) */}
+          {/* Error banner */}
           {errorMsg !== '' && (
             <View style={styles.errorBanner}>
               <Text style={styles.errorIcon}>⚠️</Text>
@@ -155,7 +159,6 @@ export default function WorkoutLogger({ navigation }) {
             <Text style={styles.addExerciseText}>＋  Add Exercise</Text>
           </TouchableOpacity>
 
-          {/* Spacer */}
           <View style={{ height: 40 }} />
         </ScrollView>
 
@@ -179,37 +182,49 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingHorizontal: 20,
+    paddingHorizontal: 16,
     paddingVertical: 14,
     borderBottomWidth: 1,
     borderBottomColor: '#181818',
   },
-  topLeft: {
+  backBtn: {
+    backgroundColor: '#1E1E1E',
+    paddingHorizontal: 16,
+    paddingVertical: 9,
+    borderRadius: 12,
+  },
+  backText: {
+    color: '#FFFFFF',
+    fontSize: 13,
+    fontWeight: '800',
+    letterSpacing: 0.5,
+  },
+  topCenter: {
     flex: 1,
-    marginRight: 12,
+    marginHorizontal: 12,
+    alignItems: 'center',
   },
   workoutTitle: {
-    fontSize: 22,
+    fontSize: 16,
     fontWeight: '800',
     color: '#FFFFFF',
     letterSpacing: 0.2,
-    padding: 0,
   },
   workoutMeta: {
-    fontSize: 12,
+    fontSize: 11,
     color: '#555',
     marginTop: 2,
     fontWeight: '500',
   },
   finishBtn: {
     backgroundColor: '#C8FF00',
-    paddingHorizontal: 20,
-    paddingVertical: 10,
+    paddingHorizontal: 16,
+    paddingVertical: 9,
     borderRadius: 12,
   },
   finishBtnText: {
     color: '#0A0A0A',
-    fontSize: 14,
+    fontSize: 13,
     fontWeight: '800',
     letterSpacing: 0.5,
   },
