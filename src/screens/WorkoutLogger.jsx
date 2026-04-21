@@ -9,7 +9,7 @@ import {
   KeyboardAvoidingView,
   Platform,
 } from 'react-native';
-import AsyncStorage from '@react-native-async-storage/async-storage';
+import { saveWorkout } from '../utils/db';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import ExerciseCard from '../components/ExerciseCard';
 import ExercisePicker from '../components/ExercisePicker';
@@ -77,10 +77,7 @@ export default function WorkoutLogger({ navigation, route }) {
     };
 
     try {
-      const existing = await AsyncStorage.getItem('workouts');
-      const workouts = existing ? JSON.parse(existing) : [];
-      workouts.push(workout);
-      await AsyncStorage.setItem('workouts', JSON.stringify(workouts));
+      await saveWorkout(workout);
       navigation.replace('WorkoutHistory');
     } catch (e) {
       Alert.alert('Error', 'Could not save workout. Please try again.');

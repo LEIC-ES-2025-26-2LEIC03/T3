@@ -1,24 +1,40 @@
 import React from 'react';
 import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
-import { getMuscleLabel } from '../data/templates';
-
-export default function TemplateCard({ template, onPress }) {
+ 
+export default function TemplateCard({ template, onPress, onEdit }) {
+  // template.exercises comes from db.js as full objects: [{id, name, muscle, ...}]
+  const muscleList = [
+    ...new Set(template.exercises.map(e => e.muscle).filter(Boolean)),
+  ].slice(0, 3).join(', ');
+ 
   return (
-    <TouchableOpacity style={styles.card} onPress={onPress} activeOpacity={0.75}>
-      <View style={styles.left}>
+    <View style={styles.card}>
+      <TouchableOpacity style={styles.left} onPress={onPress} activeOpacity={0.75}>
         <Text style={styles.name}>{template.name}</Text>
         <Text style={styles.meta}>
-          {template.exercises.length} exercises · {getMuscleLabel(template.exercises)}
+          {template.exercises.length} exercises{muscleList ? ` · ${muscleList}` : ''}
         </Text>
-        <View style={styles.tagBadge}>
-          <Text style={styles.tagText}>{template.tag}</Text>
-        </View>
+        {template.tag ? (
+          <View style={styles.tagBadge}>
+            <Text style={styles.tagText}>{template.tag}</Text>
+          </View>
+        ) : null}
+      </TouchableOpacity>
+ 
+      <View style={styles.actions}>
+        {onEdit && (
+          <TouchableOpacity style={styles.editBtn} onPress={onEdit}>
+            <Text style={styles.editText}>Edit</Text>
+          </TouchableOpacity>
+        )}
+        <TouchableOpacity onPress={onPress} activeOpacity={0.75}>
+          <Text style={styles.arrow}>›</Text>
+        </TouchableOpacity>
       </View>
-      <Text style={styles.arrow}>›</Text>
-    </TouchableOpacity>
+    </View>
   );
 }
-
+ 
 const styles = StyleSheet.create({
   card: {
     backgroundColor: '#141414',
@@ -30,9 +46,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
   },
-  left: {
-    flex: 1,
-  },
+  left: { flex: 1 },
   name: {
     fontSize: 15,
     fontWeight: '700',
@@ -61,10 +75,26 @@ const styles = StyleSheet.create({
     letterSpacing: 0.5,
     textTransform: 'uppercase',
   },
+  actions: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    marginLeft: 10,
+  },
+  editBtn: {
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    borderRadius: 8,
+    backgroundColor: '#1E1E1E',
+  },
+  editText: {
+    color: '#888',
+    fontSize: 12,
+    fontWeight: '700',
+  },
   arrow: {
     fontSize: 22,
     color: '#333',
-    marginLeft: 10,
     fontWeight: '300',
   },
 });

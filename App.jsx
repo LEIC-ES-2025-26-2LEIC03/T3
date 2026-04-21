@@ -3,9 +3,10 @@ import { NavigationContainer } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import HomeScreen from './src/screens/HomeScreen';
 import WorkoutLogger from './src/screens/WorkoutLogger';
-
+import TemplateBuilder from './src/screens/TemplateBuilder';
+ 
 const Stack = createNativeStackNavigator();
-
+ 
 export default function App() {
   return (
     <NavigationContainer>
@@ -19,6 +20,11 @@ export default function App() {
       >
         <Stack.Screen name="Home" component={HomeScreen} />
         <Stack.Screen name="WorkoutLogger" component={WorkoutLogger} />
+        <Stack.Screen
+          name="TemplateBuilder"
+          component={TemplateBuilder}
+          options={{ animation: 'slide_from_bottom' }}
+        />
       </Stack.Navigator>
     </NavigationContainer>
   );

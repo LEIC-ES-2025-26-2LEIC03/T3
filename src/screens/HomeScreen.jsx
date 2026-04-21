@@ -1,9 +1,11 @@
-import React from 'react';
-import { View, Text, ScrollView, StyleSheet, Alert } from 'react-native';
+import React, { useState, useCallback } from 'react';
+import { View, Text, ScrollView, StyleSheet, ActivityIndicator } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { useFocusEffect } from '@react-navigation/native';
 import StartWorkoutActions from '../components/StartWorkoutActions';
 import TemplateCard from '../components/TemplateCard';
-import { TEMPLATES, buildExercisesFromTemplate } from '../data/templates';
+import { fetchTemplates, buildExercisesFromTemplate } from '../utils/db';
+import { TEMPLATES as EXAMPLE_TEMPLATES, buildExercisesFromTemplate as buildFromStatic } from '../data/templates';
 
 export default function HomeScreen({ navigation }) {
   const today = new Date().toLocaleDateString('en-GB', {
@@ -12,27 +14,43 @@ export default function HomeScreen({ navigation }) {
     day: 'numeric',
   });
 
+  const [templates, setTemplates] = useState([]);
+  const [loading, setLoading] = useState(true);
+
+  // Reload templates every time this screen is focused
+  // (covers: after creating/editing/deleting a template)
+  useFocusEffect(
+    useCallback(() => {
+      setLoading(true);
+      fetchTemplates()
+        .then(setTemplates)
+        .finally(() => setLoading(false));
+    }, [])
+  );
+
   const handleStartEmpty = () => {
     navigation.navigate('WorkoutLogger', { preloadedExercises: [] });
   };
 
   const handleCreateTemplate = () => {
-    Alert.alert(
-      'Create Template',
-      'Template builder coming soon! For now, start an empty workout to log freely.',
-      [
-        { text: 'Cancel', style: 'cancel' },
-        { text: 'Start Empty Workout', onPress: handleStartEmpty },
-      ]
-    );
+    navigation.navigate('TemplateBuilder');
   };
 
   const handleUseTemplate = (template) => {
-    const exercises = buildExercisesFromTemplate(template.exercises);
+    // DB templates: template.exercises are full objects
+    // Static templates: template.exercises are ID strings
+    const exercises = typeof template.exercises[0] === 'string'
+      ? buildFromStatic(template.exercises)         // old static helper
+      : buildExercisesFromTemplate(template.exercises); // new db helper
+
     navigation.navigate('WorkoutLogger', {
       preloadedExercises: exercises,
       workoutName: template.name,
     });
+  };
+
+  const handleEditTemplate = (template) => {
+    navigation.navigate('TemplateBuilder', { templateId: template.id });
   };
 
   return (
@@ -67,9 +85,33 @@ export default function HomeScreen({ navigation }) {
           onCreateTemplate={handleCreateTemplate}
         />
 
+        {/* ── My Templates ── */}
+        <Text style={[styles.sectionLabel, { marginTop: 24 }]}>My Templates</Text>
+
+        {loading ? (
+          <ActivityIndicator color="#C8FF00" style={{ marginTop: 16 }} />
+        ) : templates.length === 0 ? (
+          <View style={styles.noTemplates}>
+            <Text style={styles.noTemplatesText}>
+              No templates yet — tap{' '}
+              <Text style={styles.noTemplatesAccent}>Create Template</Text>
+              {' '}to build your first one.
+            </Text>
+          </View>
+        ) : (
+          templates.map(template => (
+            <TemplateCard
+              key={template.id}
+              template={template}
+              onPress={() => handleUseTemplate(template)}
+              onEdit={() => handleEditTemplate(template)}
+            />
+          ))
+        )}
+
         {/* ── Example Templates ── */}
         <Text style={[styles.sectionLabel, { marginTop: 24 }]}>Example Templates</Text>
-        {TEMPLATES.map(template => (
+        {EXAMPLE_TEMPLATES.map(template => (
           <TemplateCard
             key={template.id}
             template={template}
@@ -103,9 +145,7 @@ const styles = StyleSheet.create({
     color: '#FFFFFF',
     letterSpacing: -1,
   },
-  logoAccent: {
-    color: '#C8FF00',
-  },
+  logoAccent: { color: '#C8FF00' },
   avatarCircle: {
     width: 34,
     height: 34,
@@ -122,17 +162,9 @@ const styles = StyleSheet.create({
     borderRadius: 8,
     backgroundColor: '#333',
   },
-  scroll: {
-    flex: 1,
-  },
-  scrollContent: {
-    paddingHorizontal: 20,
-    paddingTop: 8,
-  },
-  greeting: {
-    paddingTop: 16,
-    paddingBottom: 24,
-  },
+  scroll: { flex: 1 },
+  scrollContent: { paddingHorizontal: 20, paddingTop: 8 },
+  greeting: { paddingTop: 16, paddingBottom: 24 },
   greetDate: {
     fontSize: 12,
     color: '#555',
@@ -147,9 +179,7 @@ const styles = StyleSheet.create({
     marginTop: 4,
     letterSpacing: -0.5,
   },
-  greetAccent: {
-    color: '#C8FF00',
-  },
+  greetAccent: { color: '#C8FF00' },
   sectionLabel: {
     fontSize: 11,
     fontWeight: '700',
@@ -157,5 +187,22 @@ const styles = StyleSheet.create({
     letterSpacing: 1.2,
     textTransform: 'uppercase',
     marginBottom: 10,
+  },
+  noTemplates: {
+    backgroundColor: '#111',
+    borderRadius: 14,
+    padding: 18,
+    borderWidth: 1,
+    borderColor: '#1E1E1E',
+  },
+  noTemplatesText: {
+    color: '#555',
+    fontSize: 14,
+    fontWeight: '500',
+    lineHeight: 20,
+  },
+  noTemplatesAccent: {
+    color: '#C8FF00',
+    fontWeight: '700',
   },
 });
