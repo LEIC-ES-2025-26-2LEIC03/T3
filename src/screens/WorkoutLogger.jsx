@@ -55,7 +55,7 @@ export default function WorkoutLogger({ navigation, route }) {
 
   const handleFinishWorkout = async () => {
     if (exercises.length === 0) {
-      setErrorMsg('Please add at least one exercise before saving.');
+      setErrorMsg('Please add at least one exercise before finishing.');
       return;
     }
 

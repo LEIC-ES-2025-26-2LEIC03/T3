@@ -1,10 +1,10 @@
 import React, { useState, useCallback } from 'react';
-import { View, Text, ScrollView, StyleSheet, ActivityIndicator } from 'react-native';
+import { View, Text, ScrollView, StyleSheet, ActivityIndicator, Alert } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useFocusEffect } from '@react-navigation/native';
 import StartWorkoutActions from '../components/StartWorkoutActions';
 import TemplateCard from '../components/TemplateCard';
-import { fetchTemplates, buildExercisesFromTemplate } from '../utils/db';
+import { fetchTemplates, buildExercisesFromTemplate, deleteTemplate } from '../utils/db';
 import { TEMPLATES as EXAMPLE_TEMPLATES, buildExercisesFromTemplate as buildFromStatic } from '../data/templates';
 
 export default function HomeScreen({ navigation }) {
@@ -51,6 +51,24 @@ export default function HomeScreen({ navigation }) {
 
   const handleEditTemplate = (template) => {
     navigation.navigate('TemplateBuilder', { templateId: template.id });
+  };
+
+  const handleDeleteTemplate = (template) => {
+    Alert.alert(
+      'Delete Template',
+      `Are you sure you want to delete "${template.name}"? This can't be undone.`,
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Delete',
+          style: 'destructive',
+          onPress: async () => {
+            await deleteTemplate(template.id);
+            setTemplates(prev => prev.filter(t => t.id !== template.id));
+          },
+        },
+      ]
+    );
   };
 
   return (
@@ -105,6 +123,7 @@ export default function HomeScreen({ navigation }) {
               template={template}
               onPress={() => handleUseTemplate(template)}
               onEdit={() => handleEditTemplate(template)}
+              onDelete={() => handleDeleteTemplate(template)}
             />
           ))
         )}
