@@ -66,7 +66,7 @@ export default function ProfileSetupScreen({ navigation }) {
         return;
       }
 
-      navigation.replace('WorkoutLogger');
+      navigation.replace('MainTabs');
     } catch (e) {
       Alert.alert('Error', 'Something went wrong. Please try again.');
     } finally {

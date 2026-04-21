@@ -10,6 +10,7 @@ import HistoryScreen from './src/screens/HistoryScreen';
 import SettingsScreen from './src/screens/SettingsScreen';
 
 const Stack = createNativeStackNavigator();
+const Root = createNativeStackNavigator();
 const Tab = createBottomTabNavigator();
 
 // ─── Home stack (Home + WorkoutLogger) ────────────────────────────────────
@@ -33,15 +34,17 @@ function HomeStack() {
 
 function TabIcon({ label, focused }) {
   const icons = {
-    History: '📋',
-    Home: '🏠',
-    Settings: '⚙️',
+    History: '◷',
+    Home:    '⬡',
+    Settings:'◈',
   };
+
+  const color = focused ? '#C8FF00' : '#444';
 
   return (
     <View style={styles.tabItem}>
-      <Text style={styles.tabIcon}>{icons[label]}</Text>
-      <Text style={[styles.tabLabel, focused && styles.tabLabelActive]}>
+      <Text style={[styles.tabIcon, { color }]}>{icons[label]}</Text>
+      <Text style={[styles.tabLabel, { color }]} numberOfLines={1}>
         {label}
       </Text>
     </View>
@@ -85,9 +88,7 @@ function MainTabs() {
   );
 }
 
-// ─── Root navigator (handles ProfileSetup before main app) ────────────────
-
-const Root = createNativeStackNavigator();
+// ─── Root navigator (ProfileSetup → MainTabs) ─────────────────────────────
 
 export default function App() {
   return (
@@ -112,19 +113,17 @@ const styles = StyleSheet.create({
   tabItem: {
     alignItems: 'center',
     justifyContent: 'center',
-    gap: 4,
+    gap: 3,
+    width: 72,
   },
   tabIcon: {
-    fontSize: 20,
+    fontSize: 22,
+    lineHeight: 26,
   },
   tabLabel: {
     fontSize: 10,
     fontWeight: '600',
-    color: '#444',
     letterSpacing: 0.5,
     textTransform: 'uppercase',
-  },
-  tabLabelActive: {
-    color: '#C8FF00',
   },
 });
