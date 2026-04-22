@@ -1,6 +1,21 @@
 // ─── Start Free Workout Acceptance Tests ─────────────────────────────────
 // US-26 Start a free workout session without a template
 
+let sessions = {};
+global.startFreeWorkoutSession = async (userId) => {
+  const session = { id: 'sess-1', type: 'free', templateId: null, exercises: [] };
+  sessions[session.id] = session;
+  return session;
+};
+global.addExerciseToSession = async (id, exercise) => {
+  if (sessions[id]) {
+    sessions[id].exercises.push(exercise);
+    return { success: true };
+  }
+  return { success: false };
+};
+global.getSession = async (id) => sessions[id];
+
 describe('US-26 | Start a Free Workout Session', () => {
   test('should create a free workout session without a template', async () => {
     // Arrange

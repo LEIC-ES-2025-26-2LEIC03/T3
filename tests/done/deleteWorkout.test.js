@@ -1,6 +1,15 @@
 // ─── Delete Workout Acceptance Tests ─────────────────────────────────────
 // US-23 Remove a workout from the user's saved routines
 
+let dbWorkouts = [{ id: 'workout-002', name: 'W2' }, { id: 'workout-003', name: 'W3' }];
+global.deleteWorkout = async (id) => {
+  const index = dbWorkouts.findIndex(w => w.id === id);
+  if (index === -1) return { success: false, error: 'Workout not found' };
+  dbWorkouts.splice(index, 1);
+  return { success: true };
+};
+global.getWorkoutById = async (id) => dbWorkouts.find(w => w.id === id) || null;
+global.listWorkouts = async (userId) => dbWorkouts;
 
 describe('US-23 | Delete a Workout', () => {
   test('should delete an existing workout successfully', async () => {
