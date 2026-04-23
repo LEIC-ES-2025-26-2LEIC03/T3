@@ -1,6 +1,6 @@
 import React, { useState, useCallback, useRef } from 'react';
 import { View, Text, ScrollView, StyleSheet, ActivityIndicator, Alert } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useFocusEffect } from '@react-navigation/native';
 import StartWorkoutActions from '../components/StartWorkoutActions';
 import TemplateCard from '../components/TemplateCard';
@@ -8,6 +8,7 @@ import { fetchTemplates, buildExercisesFromTemplate, deleteTemplate } from '../u
 import { TEMPLATES as EXAMPLE_TEMPLATES, buildExercisesFromTemplate as buildFromStatic } from '../data/templates';
 
 export default function HomeScreen({ navigation }) {
+  const insets = useSafeAreaInsets();
   const today = new Date().toLocaleDateString('en-GB', {
     weekday: 'long',
     month: 'short',
@@ -77,7 +78,7 @@ export default function HomeScreen({ navigation }) {
   };
 
   return (
-    <SafeAreaView style={styles.safe} edges={['top']}>
+    <View style={[styles.safe, { paddingTop: insets.top }]}>
       {/* ── Top bar ── */}
       <View style={styles.topBar}>
         <Text style={styles.logo}>
@@ -145,7 +146,7 @@ export default function HomeScreen({ navigation }) {
 
         <View style={{ height: 40 }} />
       </ScrollView>
-    </SafeAreaView>
+    </View>
   );
 }
 

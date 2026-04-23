@@ -1,10 +1,11 @@
 import React from 'react';
 import { View, Text, StyleSheet } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 export default function HistoryScreen() {
+  const insets = useSafeAreaInsets();
   return (
-    <SafeAreaView style={styles.safe} edges={['top']}>
+    <View style={[styles.safe, { paddingTop: insets.top }]}>
       <View style={styles.topBar}>
         <Text style={styles.title}>History</Text>
       </View>
@@ -15,7 +16,7 @@ export default function HistoryScreen() {
           Your workout history will appear here once this feature is implemented.
         </Text>
       </View>
-    </SafeAreaView>
+    </View>
   );
 }
 

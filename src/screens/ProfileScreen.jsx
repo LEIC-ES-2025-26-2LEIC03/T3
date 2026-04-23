@@ -1,8 +1,9 @@
 import React from 'react';
 import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 export default function ProfileScreen({ navigation }) {
+  const insets = useSafeAreaInsets();
   const menuItems = [
     {
       id: 'body-metrics',
@@ -14,7 +15,7 @@ export default function ProfileScreen({ navigation }) {
   ];
 
   return (
-    <SafeAreaView style={styles.safe} edges={['top']}>
+    <View style={[styles.safe, { paddingTop: insets.top }]}>
       {/* ── Top bar ──────────────────────────────────────────────────── */}
       <View style={styles.topBar}>
         <Text style={styles.title}>Profile</Text>
@@ -42,7 +43,7 @@ export default function ProfileScreen({ navigation }) {
           </TouchableOpacity>
         ))}
       </View>
-    </SafeAreaView>
+    </View>
   );
 }
 
