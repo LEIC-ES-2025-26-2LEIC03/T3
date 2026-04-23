@@ -58,6 +58,12 @@ export default function HomeScreen({ navigation }) {
     navigation.navigate('TemplateBuilder', { templateId: template.id });
   };
 
+  const handleDuplicateTemplate = (template) => {
+  navigation.navigate('TemplateBuilder', {
+    duplicateFromTemplateId: template.id,
+  });
+};
+
   const handleDeleteTemplate = (template) => {
     Alert.alert(
       'Delete Template',
@@ -128,6 +134,7 @@ export default function HomeScreen({ navigation }) {
               template={template}
               onPress={() => handleUseTemplate(template)}
               onEdit={() => handleEditTemplate(template)}
+              onDuplicate={() => handleDuplicateTemplate(template)}
               onDelete={() => handleDeleteTemplate(template)}
             />
           ))

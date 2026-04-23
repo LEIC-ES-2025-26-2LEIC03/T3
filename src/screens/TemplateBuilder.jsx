@@ -18,33 +18,59 @@ import {
   createTemplate,
   updateTemplate,
   fetchTemplates,
+  fetchTemplateById,
+  templateNameExists,
 } from '../utils/db';
 
 const TAG_OPTIONS = ['Push', 'Pull', 'Legs', 'Full Upper', 'Full Body', 'Core', 'Cardio', 'Custom'];
 
 export default function TemplateBuilder({ navigation, route }) {
   const editingId = route?.params?.templateId ?? null;
+  const duplicateFromTemplateId = route?.params?.duplicateFromTemplateId ?? null;
+  const isDuplicateMode = !!duplicateFromTemplateId;
 
   const [name, setName] = useState('');
   const [tag, setTag] = useState('');
   const [selectedExercises, setSelectedExercises] = useState([]); // [{id, name, muscle, category}]
   const [pickerVisible, setPickerVisible] = useState(false);
   const [saving, setSaving] = useState(false);
-  const [loading, setLoading] = useState(!!editingId);
+  const [loading, setLoading] = useState(!!editingId || !!duplicateFromTemplateId);
 
   // Load template data if editing
   useEffect(() => {
-    if (!editingId) return;
-    fetchTemplates().then(templates => {
-      const t = templates.find(t => t.id === editingId);
-      if (t) {
-        setName(t.name);
-        setTag(t.tag);
-        setSelectedExercises(t.exercises); // already full exercise objects from db.js
+  const sourceId = editingId ?? duplicateFromTemplateId;
+  if (!sourceId) return;
+
+  fetchTemplates()
+    .then(templates => {
+      const t = templates.find(t => t.id === sourceId);
+
+      if (!t) {
+        Alert.alert(
+          'Template not found',
+          isDuplicateMode
+            ? 'The original template no longer exists, so it cannot be duplicated.'
+            : 'This template no longer exists.'
+        );
+        navigation.goBack();
+        return;
       }
+
+      if (isDuplicateMode) {
+        setName(`${t.name} (Copy)`);
+      } else {
+        setName(t.name);
+      }
+
+      setTag(t.tag);
+      setSelectedExercises(t.exercises);
       setLoading(false);
+    })
+    .catch(() => {
+      Alert.alert('Error', 'Could not load template.');
+      navigation.goBack();
     });
-  }, [editingId]);
+}, [editingId, duplicateFromTemplateId, isDuplicateMode, navigation]);
 
   const handleAddExercise = useCallback((exerciseDef) => {
     // Prevent duplicates
@@ -73,31 +99,62 @@ export default function TemplateBuilder({ navigation, route }) {
   }, []);
 
   const handleSave = async () => {
-    if (!name.trim()) {
-      Alert.alert('Name required', 'Please give your template a name.');
-      return;
+  const trimmedName = name.trim();
+
+  if (!trimmedName) {
+    Alert.alert('Name required', 'Please give your template a name.');
+    return;
+  }
+
+  if (selectedExercises.length === 0) {
+    Alert.alert('No exercises', 'Add at least one exercise to your template.');
+    return;
+  }
+
+  setSaving(true);
+
+  try {
+    if (isDuplicateMode) {
+      const source = await fetchTemplateById(duplicateFromTemplateId);
+
+      if (!source) {
+        Alert.alert(
+          'Template not found',
+          'The original template no longer exists, so it cannot be duplicated.'
+        );
+        return;
+      }
     }
-    if (selectedExercises.length === 0) {
-      Alert.alert('No exercises', 'Add at least one exercise to your template.');
+
+    const nameTaken = await templateNameExists(
+      trimmedName,
+      editingId && !isDuplicateMode ? editingId : null
+    );
+
+    if (nameTaken) {
+      Alert.alert(
+        'Name already exists',
+        'A template with this name already exists. Please choose a unique name.'
+      );
       return;
     }
 
-    setSaving(true);
-    try {
-      const exerciseIds = selectedExercises.map(e => e.id);
-      if (editingId) {
-        await updateTemplate(editingId, name, tag, exerciseIds);
-      } else {
-        await createTemplate(generateId(), name, tag, exerciseIds);
-      }
-      navigation.goBack();
-    } catch (err) {
-      console.error(err);
-      Alert.alert('Error', 'Could not save template. Please try again.');
-    } finally {
-      setSaving(false);
+    const exerciseIds = selectedExercises.map(e => e.id);
+
+    if (editingId && !isDuplicateMode) {
+      await updateTemplate(editingId, trimmedName, tag, exerciseIds);
+    } else {
+      await createTemplate(generateId(), trimmedName, tag, exerciseIds);
     }
-  };
+
+    navigation.goBack();
+  } catch (err) {
+    console.error(err);
+    Alert.alert('Error', 'Could not save template. Please try again.');
+  } finally {
+    setSaving(false);
+  }
+};
 
   if (loading) {
     return (
@@ -122,7 +179,7 @@ export default function TemplateBuilder({ navigation, route }) {
             <Text style={styles.backText}>Cancel</Text>
           </TouchableOpacity>
           <Text style={styles.screenTitle}>
-            {editingId ? 'Edit Template' : 'New Template'}
+            {isDuplicateMode ? 'Duplicate Template' : editingId ? 'Edit Template' : 'New Template'}
           </Text>
           <TouchableOpacity
             style={[styles.saveBtn, saving && styles.saveBtnDisabled]}
