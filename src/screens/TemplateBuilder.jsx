@@ -10,6 +10,7 @@ import {
   ActivityIndicator,
   Platform,
   KeyboardAvoidingView,
+  FlatList,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import ExercisePicker from '../components/ExercisePicker';
@@ -155,14 +156,15 @@ export default function TemplateBuilder({ navigation, route }) {
 
           {/* ── Tag ── */}
           <Text style={[styles.fieldLabel, { marginTop: 20 }]}>Tag</Text>
-          <ScrollView
+          <FlatList
             horizontal
             showsHorizontalScrollIndicator={false}
+            data={TAG_OPTIONS}
+            keyExtractor={item => item}
+            style={styles.tagListContainer}
             contentContainerStyle={styles.tagRow}
-          >
-            {TAG_OPTIONS.map(t => (
+            renderItem={({ item: t }) => (
               <TouchableOpacity
-                key={t}
                 style={[styles.tagChip, tag === t && styles.tagChipActive]}
                 onPress={() => setTag(prev => prev === t ? '' : t)}
               >
@@ -170,8 +172,8 @@ export default function TemplateBuilder({ navigation, route }) {
                   {t}
                 </Text>
               </TouchableOpacity>
-            ))}
-          </ScrollView>
+            )}
+          />
 
           {/* ── Exercises ── */}
           <View style={styles.sectionHeader}>
@@ -331,6 +333,10 @@ const styles = StyleSheet.create({
   },
 
   // Tags
+  tagListContainer: {
+    flexGrow: 0,
+    marginBottom: 4,
+  },
   tagRow: {
     gap: 8,
     paddingBottom: 4,

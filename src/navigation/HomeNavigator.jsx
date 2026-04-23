@@ -46,6 +46,7 @@ export default function HomeNavigator() {
         name="TemplateBuilder"
         component={TemplateBuilder}
         options={{
+          gestureEnabled: false,
           gestureDirection: 'horizontal',
           cardStyleInterpolator: forSlideFromRight,
           cardStyle: { backgroundColor: '#0A0A0A' },
