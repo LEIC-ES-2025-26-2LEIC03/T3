@@ -16,63 +16,83 @@ export async function getDb() {
 async function migrate(db) {
   await db.execAsync(`PRAGMA journal_mode = WAL;`);
 
+  // Version tracker — allows safe incremental schema changes on existing devices
   await db.execAsync(`
-    CREATE TABLE IF NOT EXISTS exercises (
-      id        TEXT PRIMARY KEY,
-      name      TEXT NOT NULL,
-      category  TEXT NOT NULL,
-      muscle    TEXT NOT NULL
-    );
-
-    CREATE TABLE IF NOT EXISTS templates (
-      id         TEXT PRIMARY KEY,
-      name       TEXT NOT NULL,
-      tag        TEXT NOT NULL DEFAULT '',
-      created_at TEXT NOT NULL
-    );
-
-    CREATE TABLE IF NOT EXISTS template_exercises (
-      id          TEXT PRIMARY KEY,
-      template_id TEXT NOT NULL REFERENCES templates(id) ON DELETE CASCADE,
-      exercise_id TEXT NOT NULL REFERENCES exercises(id),
-      position    INTEGER NOT NULL DEFAULT 0
-    );
-
-    CREATE TABLE IF NOT EXISTS workouts (
-      id          TEXT PRIMARY KEY,
-      name        TEXT NOT NULL,
-      started_at  TEXT NOT NULL,
-      finished_at TEXT NOT NULL
-    );
-
-    CREATE TABLE IF NOT EXISTS workout_exercises (
-      id          TEXT PRIMARY KEY,
-      workout_id  TEXT NOT NULL REFERENCES workouts(id) ON DELETE CASCADE,
-      exercise_id TEXT NOT NULL,
-      name        TEXT NOT NULL,
-      muscle      TEXT NOT NULL,
-      category    TEXT NOT NULL,
-      position    INTEGER NOT NULL DEFAULT 0
-    );
-
-    CREATE TABLE IF NOT EXISTS workout_sets (
-      id                  TEXT PRIMARY KEY,
-      workout_exercise_id TEXT NOT NULL REFERENCES workout_exercises(id) ON DELETE CASCADE,
-      weight              REAL NOT NULL DEFAULT 0,
-      reps                INTEGER NOT NULL DEFAULT 0,
-      position            INTEGER NOT NULL DEFAULT 0
+    CREATE TABLE IF NOT EXISTS _migrations (
+      version INTEGER PRIMARY KEY
     );
   `);
 
-  // Seed exercises table (ignore conflicts — idempotent)
-  await db.withTransactionAsync(async () => {
-    for (const ex of EXERCISES) {
-      await db.runAsync(
-        `INSERT OR IGNORE INTO exercises (id, name, category, muscle) VALUES (?, ?, ?, ?)`,
-        [ex.id, ex.name, ex.category, ex.muscle]
+  const row = await db.getFirstAsync(`SELECT MAX(version) as v FROM _migrations`);
+  const currentVersion = row?.v ?? 0;
+
+  if (currentVersion < 1) {
+    await db.execAsync(`
+      CREATE TABLE IF NOT EXISTS exercises (
+        id        TEXT PRIMARY KEY,
+        name      TEXT NOT NULL,
+        category  TEXT NOT NULL,
+        muscle    TEXT NOT NULL
       );
-    }
-  });
+
+      CREATE TABLE IF NOT EXISTS templates (
+        id         TEXT PRIMARY KEY,
+        name       TEXT NOT NULL,
+        tag        TEXT NOT NULL DEFAULT '',
+        created_at TEXT NOT NULL
+      );
+
+      CREATE TABLE IF NOT EXISTS template_exercises (
+        id          TEXT PRIMARY KEY,
+        template_id TEXT NOT NULL REFERENCES templates(id) ON DELETE CASCADE,
+        exercise_id TEXT NOT NULL REFERENCES exercises(id),
+        position    INTEGER NOT NULL DEFAULT 0
+      );
+
+      CREATE TABLE IF NOT EXISTS workouts (
+        id          TEXT PRIMARY KEY,
+        name        TEXT NOT NULL,
+        started_at  TEXT NOT NULL,
+        finished_at TEXT NOT NULL
+      );
+
+      CREATE TABLE IF NOT EXISTS workout_exercises (
+        id          TEXT PRIMARY KEY,
+        workout_id  TEXT NOT NULL REFERENCES workouts(id) ON DELETE CASCADE,
+        exercise_id TEXT NOT NULL,
+        name        TEXT NOT NULL,
+        muscle      TEXT NOT NULL,
+        category    TEXT NOT NULL,
+        position    INTEGER NOT NULL DEFAULT 0
+      );
+
+      CREATE TABLE IF NOT EXISTS workout_sets (
+        id                  TEXT PRIMARY KEY,
+        workout_exercise_id TEXT NOT NULL REFERENCES workout_exercises(id) ON DELETE CASCADE,
+        weight              REAL NOT NULL DEFAULT 0,
+        reps                INTEGER NOT NULL DEFAULT 0,
+        position            INTEGER NOT NULL DEFAULT 0
+      );
+    `);
+
+    // Seed exercises table (ignore conflicts — idempotent)
+    await db.withTransactionAsync(async () => {
+      for (const ex of EXERCISES) {
+        await db.runAsync(
+          `INSERT OR IGNORE INTO exercises (id, name, category, muscle) VALUES (?, ?, ?, ?)`,
+          [ex.id, ex.name, ex.category, ex.muscle]
+        );
+      }
+    });
+
+    await db.runAsync(`INSERT INTO _migrations (version) VALUES (1)`);
+  }
+
+  // Future migrations go here, e.g.:
+  // if (currentVersion < 2) {
+  //   await db.execAsync(`ALTER TABLE workouts ADD COLUMN notes TEXT`);
+  //   await db.runAsync(`INSERT INTO _migrations (version) VALUES (2)`);
+  // }
 }
 
 // ─── Template helpers ───────────────────────────────────────────────────────
@@ -115,7 +135,7 @@ export async function createTemplate(id, name, tag, exerciseIds) {
       await db.runAsync(
         `INSERT INTO template_exercises (id, template_id, exercise_id, position)
          VALUES (?, ?, ?, ?)`,
-        [`${id}_ex_${i}`, id, exerciseIds[i], i]
+        [generateId(), id, exerciseIds[i], i]
       );
     }
   });
@@ -140,7 +160,7 @@ export async function updateTemplate(id, name, tag, exerciseIds) {
       await db.runAsync(
         `INSERT INTO template_exercises (id, template_id, exercise_id, position)
          VALUES (?, ?, ?, ?)`,
-        [`${id}_ex_${i}_${Date.now()}`, id, exerciseIds[i], i]
+        [generateId(), id, exerciseIds[i], i]
       );
     }
   });
@@ -166,7 +186,7 @@ export async function saveWorkout(workout) {
 
     for (let i = 0; i < workout.exercises.length; i++) {
       const ex = workout.exercises[i];
-      const wexId = `${workout.id}_ex_${i}`;
+      const wexId = generateId();
 
       await db.runAsync(
         `INSERT INTO workout_exercises (id, workout_id, exercise_id, name, muscle, category, position)
@@ -179,7 +199,7 @@ export async function saveWorkout(workout) {
         await db.runAsync(
           `INSERT INTO workout_sets (id, workout_exercise_id, weight, reps, position)
            VALUES (?, ?, ?, ?, ?)`,
-          [`${wexId}_set_${j}`, wexId, s.weight, s.reps, j]
+          [generateId(), wexId, s.weight, s.reps, j]
         );
       }
     }
