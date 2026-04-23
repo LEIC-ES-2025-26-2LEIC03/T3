@@ -2,10 +2,19 @@ import React from 'react-native';
 import { render, fireEvent, screen, waitFor } from '@testing-library/react-native';
 import '@testing-library/react-native/extend-expect';
 
-import WorkoutLogger from '../src/screens/WorkoutLogger';
+import WorkoutLogger from '../../src/screens/WorkoutLogger';
 
 // Mock saveWorkout globally
 global.saveWorkout = jest.fn(() => Promise.resolve());
+
+jest.mock('expo-sqlite', () => ({
+  openDatabaseSync: jest.fn(() => ({
+    execAsync: jest.fn(),
+    runAsync: jest.fn(),
+    getFirstAsync: jest.fn(),
+    getAllAsync: jest.fn(),
+  })),
+}));
 
 // Mock navigation
 const mockNavigate = jest.fn();
@@ -76,7 +85,7 @@ describe('User Story 1 - Log a Workout Session', () => {
         fireEvent.press(screen.getByText('Finish'));
 
         expect(
-        await screen.findByText('Please add at least one exercise before saving.')
+        await screen.findByText('Please add at least one exercise before finishing.')
         ).toBeTruthy();
     });
 
@@ -85,7 +94,7 @@ describe('User Story 1 - Log a Workout Session', () => {
 
         fireEvent.press(screen.getByText('Finish'));
 
-        await screen.findByText('Please add at least one exercise before saving.');
+        await screen.findByText('Please add at least one exercise before finishing.');
 
         expect(screen.getByText('Finish')).toBeTruthy();
         expect(screen.getByText('＋  Add Exercise')).toBeTruthy();

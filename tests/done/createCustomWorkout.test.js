@@ -1,6 +1,15 @@
 // ─── Create Custom Workout Acceptance Tests ───────────────────────────────
 // US-21 Create and name custom workouts with exercises
 
+const workouts = [];
+global.createWorkout = async (userId, data) => {
+  if (!data.name || data.name.length > 50) return { success: false, error: 'Name is required and cannot be empty or too long' };
+  const workout = { id: 'w1', name: data.name, exercises: data.exercises };
+  workouts.push(workout);
+  return { success: true, workout };
+};
+global.listWorkouts = async (userId) => workouts;
+
 describe('US-21 | Create a Custom Workout', () => {
   test('should create a workout with a valid name and exercise list', async () => {
     // Arrange

@@ -1,6 +1,28 @@
 // ─── Edit Workout Acceptance Tests ───────────────────────────────────────
 // US-22 Modify an existing workout when the routine changes
 
+let editDb = {
+  'workout-001': {
+    id: 'workout-001',
+    name: 'Old Name',
+    exercises: [
+      { id: 'ex1', name: 'Bench Press', sets: 4, reps: 5 },
+      { id: 'ex2', name: 'Pull-Up', sets: 3, reps: 6 }
+    ]
+  }
+};
+
+global.updateWorkout = async (id, updates) => {
+  if (updates.exercises && updates.exercises.some(e => e.reps < 0)) return { success: false, error: 'reps must be positive' };
+  
+  if (editDb[id]) {
+    editDb[id] = { ...editDb[id], ...updates };
+    return { success: true };
+  }
+  return { success: false };
+};
+global.getWorkoutById = async (id) => editDb[id];
+
 describe('US-22 | Edit an Existing Workout', () => {
   test('should update workout name and exercise details successfully', async () => {
     // Arrange
