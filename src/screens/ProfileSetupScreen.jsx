@@ -117,7 +117,7 @@ export default function ProfileSetupScreen({ navigation }) {
                     units === option && styles.unitOptionTextActive,
                   ]}
                 >
-                  {option === 'kg' ? 'Metric (kg / cm)' : 'Imperial (lbs / in)'}
+                  {option === 'kg' ? 'Metric (kg)' : 'Imperial (lbs)'}
                 </Text>
               </TouchableOpacity>
             ))}
@@ -133,7 +133,7 @@ export default function ProfileSetupScreen({ navigation }) {
                 value={height}
                 onChangeText={setHeight}
                 keyboardType="decimal-pad"
-                placeholder="0"
+                placeholder="e.g., 180"
                 placeholderTextColor="#444"
               />
             </View>
@@ -144,7 +144,7 @@ export default function ProfileSetupScreen({ navigation }) {
                 value={weight}
                 onChangeText={setWeight}
                 keyboardType="decimal-pad"
-                placeholder="0"
+                placeholder="e.g., 75"
                 placeholderTextColor="#444"
               />
             </View>
@@ -158,7 +158,7 @@ export default function ProfileSetupScreen({ navigation }) {
               value={bodyFat}
               onChangeText={setBodyFat}
               keyboardType="decimal-pad"
-              placeholder="e.g. 18"
+              placeholder="e.g., 15"
               placeholderTextColor="#444"
             />
           </View>
@@ -169,7 +169,7 @@ export default function ProfileSetupScreen({ navigation }) {
             style={[styles.input, styles.textArea]}
             value={fitnessGoals}
             onChangeText={setFitnessGoals}
-            placeholder="e.g. Build strength, lose fat, improve endurance…"
+            placeholder="e.g., Build muscle, lose fat"
             placeholderTextColor="#444"
             multiline
             numberOfLines={4}
@@ -183,7 +183,7 @@ export default function ProfileSetupScreen({ navigation }) {
             disabled={saving}
           >
             <Text style={styles.saveBtnText}>
-              {saving ? 'Saving…' : 'Save & Continue'}
+              {saving ? 'Saving…' : 'Save Profile'}
             </Text>
           </TouchableOpacity>
 
