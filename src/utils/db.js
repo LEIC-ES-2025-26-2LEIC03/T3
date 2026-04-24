@@ -14,7 +14,10 @@ export async function getDb() {
 // ─── Migrations ────────────────────────────────────────────────────────────
 
 async function migrate(db) {
-  await db.execAsync(`PRAGMA journal_mode = WAL;`);
+  await db.execAsync(`
+    PRAGMA journal_mode = WAL;
+    PRAGMA foreign_keys = ON;
+    `);
 
   // Version tracker — allows safe incremental schema changes on existing devices
   await db.execAsync(`
@@ -53,7 +56,7 @@ async function migrate(db) {
         id          TEXT PRIMARY KEY,
         name        TEXT NOT NULL,
         started_at  TEXT NOT NULL,
-        finished_at TEXT NOT NULL
+        finished_at TEXT
       );
 
       CREATE TABLE IF NOT EXISTS workout_exercises (
@@ -73,6 +76,15 @@ async function migrate(db) {
         reps                INTEGER NOT NULL DEFAULT 0,
         position            INTEGER NOT NULL DEFAULT 0
       );
+
+      CREATE INDEX IF NOT EXISTS idx_template_exercises_template_id
+      ON template_exercises(template_id);
+
+      CREATE INDEX IF NOT EXISTS idx_workout_exercises_workout_id
+      ON workout_exercises(workout_exercise_id);
+
+      CREATE INDEX IF NOT EXISTS idx_workout_sets_workout_exercise_id
+      ON workout_sets(workout_exercise_set_id); 
     `);
 
     // Seed exercises table (ignore conflicts — idempotent)
