@@ -282,7 +282,7 @@ At this phase, instead of a complete user story, you can simply implement a smal
 
 #### v0 — Prototype
 
-![Prototype](docs/prototype.png)
+![Prototype](docs/prototypes/prototype.png)
 
 > [Download v0 on GitHub Releases](https://github.com/LEIC-ES-2025-26-2LEIC03/T3/releases/tag/v0.1.0)
 
@@ -355,6 +355,14 @@ You can find below information and references related with the project managemen
 
 #### Sprint Planing
 
+**Beggining**
+
+![](docs/sprint_planning/begin_sprint1.png)
+
+**End**
+
+![](docs/sprint_planning/end_sprint1.png)
+
 #### Retrospective
 
 **Did well**
@@ -371,6 +379,17 @@ You can find below information and references related with the project managemen
 
 **Improvements for Sprint 2**
 - Distribute the work at the beggining of the Sprint
+
+#### Review
+
+### Features Added
+- Home screen with smoother transitions between views
+- Navigation bar to easily move between screens
+- Ability to create and delete custom workout templates
+- Duplicate functionality for workouts/exercises
+- RPE (Rate of Perceived Exertion) logging for sets with a customized selection button
+- Profile status setup and customization capabilities
+- Local SQLite database integration for reliable persistent storage
 
 ### Sprint 2
 
