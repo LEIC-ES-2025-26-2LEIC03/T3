@@ -1,10 +1,12 @@
-import React from 'react';
-import { View, Text, TextInput, TouchableOpacity, StyleSheet, ScrollView } from 'react-native';
+import React, { useState } from 'react';
+import { View, Text, TextInput, TouchableOpacity, StyleSheet, Modal } from 'react-native';
 
 export default function SetRow({ set, setNumber, onChange, onDelete }) {
+  const [rpeModalVisible, setRpeModalVisible] = useState(false);
+
   return (
     <View style={styles.setContainer}>
-      {/* TOP ROW: Set #, Weight, Reps, and Delete */}
+      {/* TOP ROW: Set #, Weight, Reps, RPE and Delete */}
       <View style={styles.mainRow}>
         <View style={styles.setBadge}>
           <Text style={styles.setNumber}>{setNumber}</Text>
@@ -36,28 +38,22 @@ export default function SetRow({ set, setNumber, onChange, onDelete }) {
           <Text style={styles.unit}>reps</Text>
         </View>
 
+        <TouchableOpacity 
+          style={[styles.rpeButton, set.rpe && styles.rpeButtonActive]} 
+          onPress={() => setRpeModalVisible(true)}
+        >
+          <Text style={[styles.rpeButtonText, set.rpe && styles.rpeButtonActiveText]}>
+            {set.rpe !== null && set.rpe !== undefined ? set.rpe : 'RPE'}
+          </Text>
+        </TouchableOpacity>
+
         <TouchableOpacity onPress={onDelete} style={styles.deleteBtn}>
           <Text style={styles.deleteIcon}>✕</Text>
         </TouchableOpacity>
       </View>
 
-      {/* BOTTOM ROW: RPE and Notes */}
+      {/* BOTTOM ROW: Notes */}
       <View style={styles.extraRow}>
-        <View style={styles.rpeSection}>
-          <Text style={styles.rpeLabel}>RPE</Text>
-          <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.rpeScroll}>
-            {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map((val) => (
-              <TouchableOpacity
-                key={val}
-                style={[styles.rpeBtn, set.rpe === val && styles.rpeBtnActive]}
-                onPress={() => onChange({ ...set, rpe: val })}
-              >
-                <Text style={[styles.rpeBtnText, set.rpe === val && styles.rpeBtnActiveText]}>{val}</Text>
-              </TouchableOpacity>
-            ))}
-          </ScrollView>
-        </View>
-
         <TextInput
           style={styles.notesInput}
           placeholder="Add note..."
@@ -66,6 +62,49 @@ export default function SetRow({ set, setNumber, onChange, onDelete }) {
           onChangeText={val => onChange({ ...set, notes: val })}
         />
       </View>
+
+      {/* RPE Picker Modal */}
+      <Modal
+        visible={rpeModalVisible}
+        transparent={true}
+        animationType="fade"
+        onRequestClose={() => setRpeModalVisible(false)}
+      >
+        <TouchableOpacity 
+          style={styles.modalOverlay} 
+          activeOpacity={1} 
+          onPressOut={() => setRpeModalVisible(false)}
+        >
+          <View style={styles.modalContent}>
+            <Text style={styles.modalTitle}>Select RPE</Text>
+            <View style={styles.rpeGrid}>
+              {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map(val => (
+                <TouchableOpacity
+                  key={val}
+                  style={[styles.rpeGridBtn, set.rpe === val && styles.rpeGridBtnActive]}
+                  onPress={() => {
+                    onChange({ ...set, rpe: val });
+                    setRpeModalVisible(false);
+                  }}
+                >
+                  <Text style={[styles.rpeGridBtnText, set.rpe === val && styles.rpeGridBtnActiveText]}>
+                    {val}
+                  </Text>
+                </TouchableOpacity>
+              ))}
+            </View>
+            <TouchableOpacity 
+              style={styles.clearRpeBtn}
+              onPress={() => {
+                onChange({ ...set, rpe: null });
+                setRpeModalVisible(false);
+              }}
+            >
+              <Text style={styles.clearRpeBtnText}>Clear RPE</Text>
+            </TouchableOpacity>
+          </View>
+        </TouchableOpacity>
+      </Modal>
     </View>
   );
 }
@@ -82,7 +121,7 @@ const styles = StyleSheet.create({
   mainRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 8,
+    gap: 6,
   },
   extraRow: {
     marginTop: 12,
@@ -109,7 +148,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     backgroundColor: '#1A1A1A',
     borderRadius: 8,
-    paddingHorizontal: 8,
+    paddingHorizontal: 6,
     height: 40,
   },
   input: {
@@ -125,38 +164,30 @@ const styles = StyleSheet.create({
   },
   separator: {
     color: '#333',
-    fontSize: 18,
+    fontSize: 16,
   },
-  rpeSection: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: 8,
-  },
-  rpeLabel: {
-    color: '#C8FF00',
-    fontSize: 11,
-    fontWeight: '800',
-    marginRight: 10,
-  },
-  rpeScroll: {
-    flex: 1,
-  },
-  rpeBtn: {
-    paddingHorizontal: 12,
-    paddingVertical: 4,
-    borderRadius: 6,
+  rpeButton: {
+    width: 40,
+    marginLeft: 6,
     backgroundColor: '#1A1A1A',
-    marginRight: 6,
+    borderRadius: 8,
+    height: 40,
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: 'transparent',
   },
-  rpeBtnActive: {
-    backgroundColor: '#C8FF00',
+  rpeButtonActive: {
+    borderColor: '#C8FF00',
+    backgroundColor: '#1A1A1A',
   },
-  rpeBtnText: {
-    color: '#666',
-    fontSize: 12,
+  rpeButtonText: {
+    color: '#555',
+    fontSize: 14,
+    fontWeight: '600',
   },
-  rpeBtnActiveText: {
-    color: '#000',
+  rpeButtonActiveText: {
+    color: '#C8FF00',
     fontWeight: 'bold',
   },
   notesInput: {
@@ -174,5 +205,67 @@ const styles = StyleSheet.create({
   deleteIcon: {
     color: '#444',
     fontSize: 14,
+  },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.7)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  modalContent: {
+    backgroundColor: '#1A1A1A',
+    borderRadius: 16,
+    padding: 20,
+    width: '80%',
+    maxWidth: 320,
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: '#333',
+  },
+  modalTitle: {
+    color: '#FFF',
+    fontSize: 18,
+    fontWeight: 'bold',
+    marginBottom: 20,
+  },
+  rpeGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    justifyContent: 'center',
+    gap: 10,
+    marginBottom: 20,
+  },
+  rpeGridBtn: {
+    width: 45,
+    height: 45,
+    borderRadius: 8,
+    backgroundColor: '#2A2A2A',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  rpeGridBtnActive: {
+    backgroundColor: '#C8FF00',
+  },
+  rpeGridBtnText: {
+    color: '#FFF',
+    fontSize: 16,
+    fontWeight: '600',
+  },
+  rpeGridBtnActiveText: {
+    color: '#000',
+    fontWeight: 'bold',
+  },
+  clearRpeBtn: {
+    paddingVertical: 10,
+    paddingHorizontal: 20,
+    borderRadius: 8,
+    backgroundColor: '#2A1A1A',
+    borderWidth: 1,
+    borderColor: '#FF6B6B44',
+  },
+  clearRpeBtnText: {
+    color: '#FF6B6B',
+    fontSize: 14,
+    fontWeight: '600',
   },
 });
