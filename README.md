@@ -338,7 +338,6 @@ You can find below information and references related with the project managemen
 **Did well**
 - User stories follow the INVEST criteria
 - All team members contributed to the Product Backlog
--
 
 **Do differently**
 - Start the prototype earlier in the Sprint
@@ -353,6 +352,25 @@ You can find below information and references related with the project managemen
 
 
 ### Sprint 1
+
+#### Sprint Planing
+
+#### Retrospective
+
+**Did well**
+- Code is functioning well and is organized
+- Everything on the Sprint Backlog was implemented
+
+**Do differently**
+- Do a better planing on the Sprint
+- Write more unit tests
+- Write documentation sooner
+
+**Puzzles**
+- Unsure if navigation bar should have or not the unimplemented tabs
+
+**Improvements for Sprint 2**
+- Distribute the work at the beggining of the Sprint
 
 ### Sprint 2
 
