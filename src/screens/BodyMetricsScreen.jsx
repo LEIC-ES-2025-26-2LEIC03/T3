@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import {
   View,
   Text,
@@ -11,54 +11,81 @@ import {
   Platform,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { saveUserProfile, updateProfile } from '../services/profileService';
+import { getProfile, saveUserProfile, updateProfile } from '../services/profileService';
 
-const USER_ID = 'user-001'; // replace with real auth ID when available
+const USER_ID = 'user-001';
 
-export default function ProfileSetupScreen({ navigation }) {
-  // ── US-03: unit preference ──────────────────────────────────────────────
+export default function BodyMetricsScreen({ navigation }) {
   const [units, setUnits] = useState('kg');
-
-  // ── US-20: profile details ──────────────────────────────────────────────
   const [height, setHeight] = useState('');
   const [weight, setWeight] = useState('');
   const [bodyFat, setBodyFat] = useState('');
-  const [fitnessGoals, setFitnessGoals] = useState('');
-
   const [errorMsg, setErrorMsg] = useState('');
   const [saving, setSaving] = useState(false);
+  const [successMsg, setSuccessMsg] = useState('');
 
-  // ── Derived labels based on unit preference ─────────────────────────────
+  // ── Derived labels based on unit preference ───────────────────────────
   const heightLabel = units === 'kg' ? 'Height (cm)' : 'Height (in)';
   const weightLabel = units === 'kg' ? 'Weight (kg)' : 'Weight (lbs)';
 
+  // ── Load existing profile on mount ────────────────────────────────────
+  const loadData = useCallback(async () => {
+    try {
+      const profile = await getProfile(USER_ID);
+      if (profile.units) setUnits(profile.units);
+
+      if (profile.heightCm != null) {
+        const displayHeight =
+          profile.units === 'lbs'
+            ? (profile.heightCm / 2.54).toFixed(1)
+            : String(profile.heightCm);
+        setHeight(displayHeight);
+      }
+      if (profile.weightKg != null) {
+        const displayWeight =
+          profile.units === 'lbs'
+            ? (profile.weightKg / 0.453592).toFixed(1)
+            : String(profile.weightKg);
+        setWeight(displayWeight);
+      }
+      if (profile.bodyFatPercentage != null) {
+        setBodyFat(String(profile.bodyFatPercentage));
+      }
+    } catch {
+      // silently fallback to defaults
+    }
+  }, []);
+
+  useEffect(() => {
+    loadData();
+  }, [loadData]);
+
+  // ── Save handler ──────────────────────────────────────────────────────
   const handleSave = async () => {
     setErrorMsg('');
+    setSuccessMsg('');
     setSaving(true);
 
     try {
-      // Save unit preference first (US-03)
+      // Save unit preference
       const unitsResult = await updateProfile(USER_ID, { units });
       if (!unitsResult.success) {
         setErrorMsg(unitsResult.error);
         return;
       }
 
-      // Convert to metric for storage if user chose imperial (US-20)
-      const heightCm = units === 'kg'
-        ? parseFloat(height)
-        : parseFloat(height) * 2.54;
+      // Convert to metric for storage if user chose imperial
+      const heightCm =
+        units === 'kg' ? parseFloat(height) : parseFloat(height) * 2.54;
 
-      const weightKg = units === 'kg'
-        ? parseFloat(weight)
-        : parseFloat(weight) * 0.453592;
+      const weightKg =
+        units === 'kg' ? parseFloat(weight) : parseFloat(weight) * 0.453592;
 
-      // Save profile details (US-20)
       const profileResult = await saveUserProfile(USER_ID, {
         heightCm: isNaN(heightCm) ? null : Math.round(heightCm),
         weightKg: isNaN(weightKg) ? null : parseFloat(weightKg.toFixed(1)),
         bodyFatPercentage: bodyFat !== '' ? parseFloat(bodyFat) : null,
-        fitnessGoals: fitnessGoals.trim(),
+        fitnessGoals: '', // preserve — we don't touch goals here
       });
 
       if (!profileResult.success) {
@@ -66,8 +93,9 @@ export default function ProfileSetupScreen({ navigation }) {
         return;
       }
 
-      navigation.replace('MainTabs');
-    } catch (e) {
+      setSuccessMsg('Body metrics saved!');
+      setTimeout(() => setSuccessMsg(''), 2500);
+    } catch {
       Alert.alert('Error', 'Something went wrong. Please try again.');
     } finally {
       setSaving(false);
@@ -75,23 +103,29 @@ export default function ProfileSetupScreen({ navigation }) {
   };
 
   return (
-    <SafeAreaView style={styles.safe}>
+    <SafeAreaView style={styles.safe} edges={['top']}>
       <KeyboardAvoidingView
         style={{ flex: 1 }}
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}
         keyboardVerticalOffset={80}
       >
+        {/* ── Top bar with back button ────────────────────────────────── */}
+        <View style={styles.topBar}>
+          <TouchableOpacity
+            onPress={() => navigation.goBack()}
+            style={styles.backBtn}
+          >
+            <Text style={styles.backArrow}>‹</Text>
+          </TouchableOpacity>
+          <Text style={styles.title}>Body Metrics</Text>
+          <View style={styles.backBtn} />
+        </View>
+
         <ScrollView
           contentContainerStyle={styles.scroll}
           keyboardShouldPersistTaps="handled"
         >
-          {/* ── Header ───────────────────────────────────────────────── */}
-          <Text style={styles.heading}>Set Up Your Profile</Text>
-          <Text style={styles.subheading}>
-            Help us personalise your training recommendations.
-          </Text>
-
-          {/* ── Error banner ─────────────────────────────────────────── */}
+          {/* ── Error banner ──────────────────────────────────────────── */}
           {errorMsg !== '' && (
             <View style={styles.errorBanner}>
               <Text style={styles.errorIcon}>⚠️</Text>
@@ -99,7 +133,15 @@ export default function ProfileSetupScreen({ navigation }) {
             </View>
           )}
 
-          {/* ── US-03: Unit preference ───────────────────────────────── */}
+          {/* ── Success banner ────────────────────────────────────────── */}
+          {successMsg !== '' && (
+            <View style={styles.successBanner}>
+              <Text style={styles.successIcon}>✓</Text>
+              <Text style={styles.successText}>{successMsg}</Text>
+            </View>
+          )}
+
+          {/* ── Unit preference ───────────────────────────────────────── */}
           <Text style={styles.sectionLabel}>Measurement System</Text>
           <View style={styles.unitToggle}>
             {['kg', 'lbs'].map((option) => (
@@ -117,13 +159,13 @@ export default function ProfileSetupScreen({ navigation }) {
                     units === option && styles.unitOptionTextActive,
                   ]}
                 >
-                  {option === 'kg' ? 'Metric (kg)' : 'Imperial (lbs)'}
+                  {option === 'kg' ? 'Metric (kg / cm)' : 'Imperial (lbs / in)'}
                 </Text>
               </TouchableOpacity>
             ))}
           </View>
 
-          {/* ── US-20: Height & Weight ───────────────────────────────── */}
+          {/* ── Height & Weight ───────────────────────────────────────── */}
           <Text style={styles.sectionLabel}>Body Measurements</Text>
           <View style={styles.row}>
             <View style={styles.halfField}>
@@ -133,7 +175,7 @@ export default function ProfileSetupScreen({ navigation }) {
                 value={height}
                 onChangeText={setHeight}
                 keyboardType="decimal-pad"
-                placeholder="e.g., 180"
+                placeholder="0"
                 placeholderTextColor="#444"
               />
             </View>
@@ -144,46 +186,36 @@ export default function ProfileSetupScreen({ navigation }) {
                 value={weight}
                 onChangeText={setWeight}
                 keyboardType="decimal-pad"
-                placeholder="e.g., 75"
+                placeholder="0"
                 placeholderTextColor="#444"
               />
             </View>
           </View>
 
-          {/* ── US-20: Body fat ──────────────────────────────────────── */}
+          {/* ── Body fat ──────────────────────────────────────────────── */}
           <View style={styles.field}>
-            <Text style={styles.fieldLabel}>Body Fat % <Text style={styles.optional}>(optional)</Text></Text>
+            <Text style={styles.fieldLabel}>
+              Body Fat %{' '}
+              <Text style={styles.optional}>(optional)</Text>
+            </Text>
             <TextInput
               style={styles.input}
               value={bodyFat}
               onChangeText={setBodyFat}
               keyboardType="decimal-pad"
-              placeholder="e.g., 15"
+              placeholder="e.g. 18"
               placeholderTextColor="#444"
             />
           </View>
 
-          {/* ── US-20: Fitness goals ─────────────────────────────────── */}
-          <Text style={styles.sectionLabel}>Fitness Goals</Text>
-          <TextInput
-            style={[styles.input, styles.textArea]}
-            value={fitnessGoals}
-            onChangeText={setFitnessGoals}
-            placeholder="e.g., Build muscle, lose fat"
-            placeholderTextColor="#444"
-            multiline
-            numberOfLines={4}
-            textAlignVertical="top"
-          />
-
-          {/* ── Save button ──────────────────────────────────────────── */}
+          {/* ── Save button ───────────────────────────────────────────── */}
           <TouchableOpacity
             style={[styles.saveBtn, saving && styles.saveBtnDisabled]}
             onPress={handleSave}
             disabled={saving}
           >
             <Text style={styles.saveBtnText}>
-              {saving ? 'Saving…' : 'Save Profile'}
+              {saving ? 'Saving…' : 'Save Changes'}
             </Text>
           </TouchableOpacity>
 
@@ -199,21 +231,35 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: '#0A0A0A',
   },
-  scroll: {
-    padding: 20,
+  topBar: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 16,
+    paddingVertical: 14,
+    borderBottomWidth: 1,
+    borderBottomColor: '#181818',
   },
-  heading: {
-    fontSize: 26,
+  backBtn: {
+    width: 36,
+    height: 36,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  backArrow: {
+    fontSize: 28,
+    color: '#C8FF00',
+    fontWeight: '300',
+    marginTop: -2,
+  },
+  title: {
+    fontSize: 18,
     fontWeight: '800',
     color: '#FFFFFF',
-    letterSpacing: 0.3,
-    marginBottom: 6,
+    letterSpacing: 0.2,
   },
-  subheading: {
-    fontSize: 14,
-    color: '#555',
-    marginBottom: 28,
-    lineHeight: 20,
+  scroll: {
+    padding: 20,
   },
   errorBanner: {
     flexDirection: 'row',
@@ -234,6 +280,28 @@ const styles = StyleSheet.create({
     color: '#FF6B6B',
     fontSize: 14,
     fontWeight: '500',
+  },
+  successBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#1A2A1A',
+    borderRadius: 12,
+    padding: 14,
+    marginBottom: 20,
+    borderWidth: 1,
+    borderColor: '#C8FF0044',
+    gap: 10,
+  },
+  successIcon: {
+    fontSize: 18,
+    color: '#C8FF00',
+    fontWeight: '700',
+  },
+  successText: {
+    flex: 1,
+    color: '#C8FF00',
+    fontSize: 14,
+    fontWeight: '600',
   },
   sectionLabel: {
     fontSize: 12,
@@ -279,7 +347,7 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   field: {
-    marginBottom: 16,
+    marginBottom: 24,
   },
   fieldLabel: {
     fontSize: 13,
@@ -301,10 +369,6 @@ const styles = StyleSheet.create({
     color: '#FFFFFF',
     fontSize: 15,
     fontWeight: '500',
-  },
-  textArea: {
-    minHeight: 100,
-    marginBottom: 28,
   },
   saveBtn: {
     backgroundColor: '#C8FF00',

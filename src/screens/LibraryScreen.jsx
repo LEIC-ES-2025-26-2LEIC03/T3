@@ -2,18 +2,18 @@ import React from 'react';
 import { View, Text, StyleSheet } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-export default function HistoryScreen() {
+export default function LibraryScreen() {
   const insets = useSafeAreaInsets();
   return (
     <View style={[styles.safe, { paddingTop: insets.top }]}>
       <View style={styles.topBar}>
-        <Text style={styles.title}>History</Text>
+        <Text style={styles.title}>Library</Text>
       </View>
       <View style={styles.body}>
-        <Text style={styles.icon}>📋</Text>
+        <Text style={styles.icon}>📚</Text>
         <Text style={styles.heading}>Coming Soon</Text>
         <Text style={styles.sub}>
-          Your workout history will appear here once this feature is implemented.
+          Your exercise library will appear here once this feature is implemented.
         </Text>
       </View>
     </View>

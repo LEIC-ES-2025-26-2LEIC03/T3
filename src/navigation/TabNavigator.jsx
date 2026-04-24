@@ -3,16 +3,20 @@ import { View, Text, StyleSheet } from 'react-native';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 
 import HistoryScreen from '../screens/HistoryScreen';
+import LibraryScreen from '../screens/LibraryScreen';
 import SettingsScreen from '../screens/SettingsScreen';
 import HomeNavigator from './HomeNavigator';
+import ProfileNavigator from './ProfileNavigator';
 
 const Tab = createBottomTabNavigator();
 
 function TabIcon({ label, focused }) {
   const icons = {
     History: '◷',
+    Library: '◩',
     Home:    '⬡',
     Settings:'◈',
+    Profile: '⚇',
   };
 
   const color = focused ? '#C8FF00' : '#444';
@@ -41,10 +45,17 @@ export default function TabNavigator() {
       }}
     >
       <Tab.Screen
-        name="HistoryTab"
-        component={HistoryScreen}
+        name="ProfileTab"
+        component={ProfileNavigator}
         options={{
-          tabBarIcon: ({ focused }) => <TabIcon label="History" focused={focused} />,
+          tabBarIcon: ({ focused }) => <TabIcon label="Profile" focused={focused} />,
+        }}
+      />
+      <Tab.Screen
+        name="LibraryTab"
+        component={LibraryScreen}
+        options={{
+          tabBarIcon: ({ focused }) => <TabIcon label="Library" focused={focused} />,
         }}
       />
       <Tab.Screen
@@ -52,6 +63,13 @@ export default function TabNavigator() {
         component={HomeNavigator}
         options={{
           tabBarIcon: ({ focused }) => <TabIcon label="Home" focused={focused} />,
+        }}
+      />
+      <Tab.Screen
+        name="HistoryTab"
+        component={HistoryScreen}
+        options={{
+          tabBarIcon: ({ focused }) => <TabIcon label="History" focused={focused} />,
         }}
       />
       <Tab.Screen
@@ -78,7 +96,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     gap: 3,
-    width: 72,
+    width: 64,
   },
   tabIcon: {
     fontSize: 22,
