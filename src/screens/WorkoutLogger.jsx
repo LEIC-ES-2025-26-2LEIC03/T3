@@ -36,7 +36,7 @@ export default function WorkoutLogger({ navigation, route }) {
       name: exerciseDef.name,
       muscle: exerciseDef.muscle,
       category: exerciseDef.category,
-      sets: [{ id: generateId(), weight: '', reps: '' }],
+      sets: [{ id: generateId(), weight: '', reps: '', rpe: null, notes: '' }],
     };
     setExercises(prev => [...prev, newExercise]);
     setPickerVisible(false);
@@ -59,6 +59,22 @@ export default function WorkoutLogger({ navigation, route }) {
       return;
     }
 
+    for (const ex of exercises) {
+      for (const s of ex.sets) {
+        const hasRPE = s.rpe !== null && s.rpe !== undefined;
+        const hasWeight = s.weight !== '' && parseFloat(s.weight) > 0;
+        const hasReps = s.reps !== '' && parseInt(s.reps, 10) > 0;
+
+        if (hasRPE && (!hasWeight || !hasReps)) {
+          Alert.alert(
+            'Incomplete Set',
+            `Please enter weight and reps for all sets with an RPE in ${ex.name}.`
+          );
+          return;
+        }
+      }
+    }
+
     const workout = {
       id: generateId(),
       name: workoutName.trim() || 'Unnamed Workout',
@@ -72,6 +88,9 @@ export default function WorkoutLogger({ navigation, route }) {
         sets: ex.sets.map(s => ({
           weight: parseFloat(s.weight) || 0,
           reps: parseInt(s.reps, 10) || 0,
+          rpe: s.rpe || null,
+          notes: s.notes || '',
+          timestamp: new Date().toISOString(),
         })),
       })),
     };

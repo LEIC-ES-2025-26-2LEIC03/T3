@@ -45,6 +45,7 @@ export default function ExerciseCard({ exercise, onUpdate, onRemove }) {
           <Text style={styles.columnLabel}>Weight</Text>
           <Text style={styles.columnLabelCenter}>×</Text>
           <Text style={styles.columnLabel}>Reps</Text>
+          <Text style={[styles.columnLabel, { flex: 0, width: 40, marginLeft: 6 }]}>RPE</Text>
           <View style={styles.labelSpacer} />
         </View>
       )}
