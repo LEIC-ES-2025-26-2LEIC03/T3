@@ -7,6 +7,9 @@ import WorkoutLogger from '../../src/screens/WorkoutLogger';
 // Mock saveWorkout globally
 global.saveWorkout = jest.fn(() => Promise.resolve());
 
+jest.mock('react-native-get-random-values', () => {});
+jest.mock('uuid', () => ({ v4: () => '123456789' }));
+
 jest.mock('expo-sqlite', () => ({
   openDatabaseSync: jest.fn(() => ({
     execAsync: jest.fn(),

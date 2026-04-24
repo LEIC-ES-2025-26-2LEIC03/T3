@@ -4,6 +4,10 @@ import React from 'react';
 import { render, screen } from '@testing-library/react-native';
 import SettingsScreen from '../../src/screens/SettingsScreen';
 
+jest.mock('react-native-safe-area-context', () => ({
+  useSafeAreaInsets: () => ({ top: 0, bottom: 0, left: 0, right: 0 }),
+}));
+
 describe('SettingsScreen', () => {
   describe('Component Rendering', () => {
     test('should render the SettingsScreen component', () => {
