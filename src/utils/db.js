@@ -133,6 +133,36 @@ export async function fetchTemplates() {
   return templates;
 }
 
+/** Uses a template ID to access it */
+
+export async function fetchTemplateById(id) {
+  const templates = await fetchTemplates();
+  return templates.find(t => t.id === id) ?? null;
+}
+
+/** Checks if Name already exists */
+export async function templateNameExists(name, excludeId = null) {
+  const db = await getDb();
+
+  const trimmedName = name.trim();
+
+  if (!trimmedName) return false;
+
+  if (excludeId) {
+    const row = await db.getFirstAsync(
+      `SELECT id FROM templates WHERE LOWER(name) = LOWER(?) AND id != ? LIMIT 1`,
+      [trimmedName, excludeId]
+    );
+    return !!row;
+  }
+
+  const row = await db.getFirstAsync(
+    `SELECT id FROM templates WHERE LOWER(name) = LOWER(?) LIMIT 1`,
+    [trimmedName]
+  );
+  return !!row;
+}
+
 /** Creates a new template. exerciseIds is string[] */
 export async function createTemplate(id, name, tag, exerciseIds) {
   const db = await getDb();

@@ -1,7 +1,7 @@
 import React from 'react';
 import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
  
-export default function TemplateCard({ template, onPress, onEdit, onDelete }) {
+export default function TemplateCard({ template, onPress, onEdit, onDelete, onDuplicate }) {
   // template.exercises comes from db.js as full objects: [{id, name, muscle, ...}]
   const muscleList = [
     ...new Set(template.exercises.map(e => e.muscle).filter(Boolean)),
@@ -30,6 +30,11 @@ export default function TemplateCard({ template, onPress, onEdit, onDelete }) {
         {onDelete && (
           <TouchableOpacity style={styles.deleteBtn} onPress={onDelete}>
             <Text style={styles.deleteText}>🗑</Text>
+          </TouchableOpacity>
+        )}
+          {onDuplicate && (
+          <TouchableOpacity style={styles.editBtn} onPress={onDuplicate}>
+            <Text style={styles.editText}>Duplicate</Text>
           </TouchableOpacity>
         )}
         <TouchableOpacity onPress={onPress} activeOpacity={0.75}>
