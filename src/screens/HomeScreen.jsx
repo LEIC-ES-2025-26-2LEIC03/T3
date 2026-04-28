@@ -7,6 +7,8 @@ import TemplateCard from '../components/TemplateCard';
 import { fetchTemplates, buildExercisesFromTemplate, deleteTemplate } from '../utils/db';
 import { TEMPLATES as EXAMPLE_TEMPLATES, buildExercisesFromTemplate as buildFromStatic } from '../data/templates';
 
+const USER_ID = 'user-001'; // TODO: replace with useAuth() when accounts land
+
 export default function HomeScreen({ navigation }) {
   const insets = useSafeAreaInsets();
   const today = new Date().toLocaleDateString('en-GB', {
@@ -27,7 +29,7 @@ export default function HomeScreen({ navigation }) {
         // First mount: show spinner
         setLoading(true);
       }
-      fetchTemplates()
+      fetchTemplates(USER_ID)
         .then(setTemplates)
         .finally(() => {
           setLoading(false);
@@ -75,7 +77,7 @@ export default function HomeScreen({ navigation }) {
           text: 'Delete',
           style: 'destructive',
           onPress: async () => {
-            await deleteTemplate(template.id);
+            await deleteTemplate(USER_ID, template.id);
             setTemplates(prev => prev.filter(t => t.id !== template.id));
           },
         },

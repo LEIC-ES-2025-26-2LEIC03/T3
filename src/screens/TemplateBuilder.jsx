@@ -23,6 +23,8 @@ import {
   templateNameExists,
 } from '../utils/db';
 
+const USER_ID = 'user-001'; // TODO: replace with useAuth() when accounts land
+
 const TAG_OPTIONS = ['Push', 'Pull', 'Legs', 'Full Upper', 'Full Body', 'Core', 'Cardio', 'Custom'];
 
 export default function TemplateBuilder({ navigation, route }) {
@@ -42,7 +44,7 @@ export default function TemplateBuilder({ navigation, route }) {
   const sourceId = editingId ?? duplicateFromTemplateId;
   if (!sourceId) return;
 
-  fetchTemplates()
+  fetchTemplates(USER_ID)
     .then(templates => {
       const t = templates.find(t => t.id === sourceId);
 
@@ -116,7 +118,7 @@ export default function TemplateBuilder({ navigation, route }) {
 
   try {
     if (isDuplicateMode) {
-      const source = await fetchTemplateById(duplicateFromTemplateId);
+      const source = await fetchTemplateById(USER_ID, duplicateFromTemplateId);
 
       if (!source) {
         Alert.alert(
@@ -128,6 +130,7 @@ export default function TemplateBuilder({ navigation, route }) {
     }
 
     const nameTaken = await templateNameExists(
+      USER_ID,
       trimmedName,
       editingId && !isDuplicateMode ? editingId : null
     );
@@ -143,9 +146,9 @@ export default function TemplateBuilder({ navigation, route }) {
     const exerciseIds = selectedExercises.map(e => e.id);
 
     if (editingId && !isDuplicateMode) {
-      await updateTemplate(editingId, trimmedName, tag, exerciseIds);
+      await updateTemplate(USER_ID, editingId, trimmedName, tag, exerciseIds);
     } else {
-      await createTemplate(generateId(), trimmedName, tag, exerciseIds);
+      await createTemplate(USER_ID, generateId(), trimmedName, tag, exerciseIds);
     }
 
     navigation.goBack();

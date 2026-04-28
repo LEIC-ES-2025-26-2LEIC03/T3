@@ -2,6 +2,10 @@ import * as SQLite from 'expo-sqlite';
 import { EXERCISES } from '../data/exercises';
 import { generateId } from './id';
 
+// ─── DB singleton ────────────────────────────────────────────────────────────
+// One connection for the lifetime of the app. WAL mode means reads never block
+// writes, which matters once a background sync thread is writing concurrently.
+
 let _db = null;
 
 export async function getDb() {
@@ -11,38 +15,103 @@ export async function getDb() {
   return _db;
 }
 
-// ─── Migrations ────────────────────────────────────────────────────────────
+// ─── Migrations ──────────────────────────────────────────────────────────────
+//
+// Rules:
+//   • Never edit a migration that has already shipped — add a new one instead.
+//   • Every migration must be idempotent (IF NOT EXISTS / OR IGNORE).
+//   • Always insert into _migrations LAST so a crash mid-migration leaves the
+//     version counter behind and the migration re-runs on next launch.
 
 async function migrate(db) {
   await db.execAsync(`
     PRAGMA journal_mode = WAL;
     PRAGMA foreign_keys = ON;
-    `);
+  `);
 
-  // Version tracker — allows safe incremental schema changes on existing devices
   await db.execAsync(`
     CREATE TABLE IF NOT EXISTS _migrations (
       version INTEGER PRIMARY KEY
     );
   `);
 
-  const row = await db.getFirstAsync(`SELECT MAX(version) as v FROM _migrations`);
+  const row = await db.getFirstAsync(`SELECT MAX(version) AS v FROM _migrations`);
   const currentVersion = row?.v ?? 0;
 
-  if (currentVersion < 1) {
-    await db.execAsync(`
-      CREATE TABLE IF NOT EXISTS exercises (
-        id        TEXT PRIMARY KEY,
-        name      TEXT NOT NULL,
-        category  TEXT NOT NULL,
-        muscle    TEXT NOT NULL
-      );
+  // ── v2: accounts + offline-first sync ───────────────────────────────────
+  //
+  // Key design decisions:
+  //
+  //  1. user_id on every user-owned table.
+  //     Rows are scoped to a user so the same local DB can safely cache data
+  //     from a future multi-account scenario, and the sync layer always knows
+  //     whose data it is dealing with.
+  //
+  //  2. updated_at on every mutable table.
+  //     The sync engine compares `updated_at > last_synced_at` to find dirty
+  //     rows. Without this, the only option is a full re-download on every sync.
+  //
+  //  3. deleted_at (soft deletes) instead of hard DELETE.
+  //     If a user deletes a template on phone A while offline, and phone B syncs
+  //     later, the server needs a tombstone to know the deletion happened.
+  //     Hard-deleted rows leave no trace, so they would simply reappear after
+  //     the next sync. All reads filter WHERE deleted_at IS NULL.
+  //
+  //  4. synced_at per row.
+  //     Tracks when a row was last successfully pushed to the server. The sync
+  //     engine queues rows where synced_at IS NULL OR synced_at < updated_at.
+  //
+  //  5. sync_status enum: 'pending' | 'synced' | 'conflict'.
+  //     Gives the UI something to render (e.g. a cloud-pending indicator) and
+  //     lets the conflict-resolution layer mark rows that need human attention.
+  //
+  //  6. workout_sets gains rpe + notes columns.
+  //     They were tracked in JS state but never persisted to SQLite, so they
+  //     were lost on app restart. Fixed here.
+  //
+  //  7. Indexes on (user_id, updated_at) for every synced table.
+  //     The sync query "give me all rows for user X changed after timestamp T"
+  //     is the single most frequent query once sync is running. Without this
+  //     index it becomes a full-table scan.
 
-      CREATE TABLE IF NOT EXISTS templates (
+  if (currentVersion < 2) {
+    await db.execAsync(`
+      -- ── Core exercise catalogue (shared, not user-scoped) ──────────────────
+      CREATE TABLE IF NOT EXISTS exercises (
         id         TEXT PRIMARY KEY,
         name       TEXT NOT NULL,
-        tag        TEXT NOT NULL DEFAULT '',
-        created_at TEXT NOT NULL
+        category   TEXT NOT NULL,
+        muscle     TEXT NOT NULL,
+        updated_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now'))
+      );
+
+      -- ── User profiles ───────────────────────────────────────────────────────
+      -- One row per authenticated user. user_id matches the auth provider's UID
+      -- (e.g. Supabase auth.users.id / Firebase UID) so joins are trivial.
+      CREATE TABLE IF NOT EXISTS user_profiles (
+        user_id              TEXT PRIMARY KEY,
+        units                TEXT NOT NULL DEFAULT 'kg',
+        height_cm            REAL,
+        weight_kg            REAL,
+        body_fat_percentage  REAL,
+        fitness_goals        TEXT,
+        created_at           TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now')),
+        updated_at           TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now')),
+        synced_at            TEXT,
+        sync_status          TEXT NOT NULL DEFAULT 'pending'
+      );
+
+      -- ── Workout templates ───────────────────────────────────────────────────
+      CREATE TABLE IF NOT EXISTS templates (
+        id          TEXT PRIMARY KEY,
+        user_id     TEXT NOT NULL,
+        name        TEXT NOT NULL,
+        tag         TEXT NOT NULL DEFAULT '',
+        created_at  TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now')),
+        updated_at  TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now')),
+        deleted_at  TEXT,
+        synced_at   TEXT,
+        sync_status TEXT NOT NULL DEFAULT 'pending'
       );
 
       CREATE TABLE IF NOT EXISTS template_exercises (
@@ -50,13 +119,24 @@ async function migrate(db) {
         template_id TEXT NOT NULL REFERENCES templates(id) ON DELETE CASCADE,
         exercise_id TEXT NOT NULL REFERENCES exercises(id),
         position    INTEGER NOT NULL DEFAULT 0
+        -- Intentionally no sync columns: template_exercises are always
+        -- replaced wholesale when their parent template changes, so the
+        -- parent's updated_at / sync_status covers them.
       );
 
+      -- ── Completed workouts ──────────────────────────────────────────────────
       CREATE TABLE IF NOT EXISTS workouts (
         id          TEXT PRIMARY KEY,
+        user_id     TEXT NOT NULL,
         name        TEXT NOT NULL,
         started_at  TEXT NOT NULL,
-        finished_at TEXT
+        finished_at TEXT,
+        notes       TEXT,
+        created_at  TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now')),
+        updated_at  TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now')),
+        deleted_at  TEXT,
+        synced_at   TEXT,
+        sync_status TEXT NOT NULL DEFAULT 'pending'
       );
 
       CREATE TABLE IF NOT EXISTS workout_exercises (
@@ -67,6 +147,8 @@ async function migrate(db) {
         muscle      TEXT NOT NULL,
         category    TEXT NOT NULL,
         position    INTEGER NOT NULL DEFAULT 0
+        -- Same rationale as template_exercises: child rows are always
+        -- replaced with their parent, so no independent sync columns needed.
       );
 
       CREATE TABLE IF NOT EXISTS workout_sets (
@@ -74,47 +156,170 @@ async function migrate(db) {
         workout_exercise_id TEXT NOT NULL REFERENCES workout_exercises(id) ON DELETE CASCADE,
         weight              REAL NOT NULL DEFAULT 0,
         reps                INTEGER NOT NULL DEFAULT 0,
+        rpe                 REAL,
+        notes               TEXT,
         position            INTEGER NOT NULL DEFAULT 0
       );
 
-      CREATE INDEX IF NOT EXISTS idx_template_exercises_template_id
-      ON template_exercises(template_id);
+      -- ── Sync queue ──────────────────────────────────────────────────────────
+      -- An explicit outbox that the sync engine drains. Decouples data writes
+      -- from network activity: the app writes locally and returns immediately;
+      -- a background task processes this queue when online.
+      --
+      -- operation: 'upsert' | 'delete'
+      -- payload:   full JSON snapshot of the row at write time (for upserts).
+      --            On conflict, the server compares payload.updated_at with the
+      --            server row's updated_at and keeps the newer one.
+      CREATE TABLE IF NOT EXISTS sync_queue (
+        id         INTEGER PRIMARY KEY AUTOINCREMENT,
+        table_name TEXT NOT NULL,
+        row_id     TEXT NOT NULL,
+        operation  TEXT NOT NULL DEFAULT 'upsert',
+        payload    TEXT,
+        user_id    TEXT NOT NULL,
+        created_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now')),
+        attempts   INTEGER NOT NULL DEFAULT 0,
+        last_error TEXT
+      );
 
-      CREATE INDEX IF NOT EXISTS idx_workout_exercises_workout_id
-      ON workout_exercises(workout_exercise_id);
+      -- ── Indexes ─────────────────────────────────────────────────────────────
 
-      CREATE INDEX IF NOT EXISTS idx_workout_sets_workout_exercise_id
-      ON workout_sets(workout_exercise_set_id); 
+      -- Template lookups by user (main screen load)
+      CREATE INDEX IF NOT EXISTS idx_templates_user_updated
+        ON templates(user_id, updated_at)
+        WHERE deleted_at IS NULL;
+
+      -- Template exercise order
+      CREATE INDEX IF NOT EXISTS idx_template_exercises_template
+        ON template_exercises(template_id, position);
+
+      -- Workout history by user
+      CREATE INDEX IF NOT EXISTS idx_workouts_user_finished
+        ON workouts(user_id, finished_at DESC)
+        WHERE deleted_at IS NULL;
+
+      -- Workout child rows
+      CREATE INDEX IF NOT EXISTS idx_workout_exercises_workout
+        ON workout_exercises(workout_id, position);
+
+      CREATE INDEX IF NOT EXISTS idx_workout_sets_exercise
+        ON workout_sets(workout_exercise_id, position);
+
+      -- Sync engine: find all unsynced rows for a user fast
+      CREATE INDEX IF NOT EXISTS idx_templates_sync
+        ON templates(user_id, sync_status)
+        WHERE sync_status != 'synced';
+
+      CREATE INDEX IF NOT EXISTS idx_workouts_sync
+        ON workouts(user_id, sync_status)
+        WHERE sync_status != 'synced';
+
+      -- Sync queue drain order
+      CREATE INDEX IF NOT EXISTS idx_sync_queue_user
+        ON sync_queue(user_id, id);
     `);
 
-    // Seed exercises table (ignore conflicts — idempotent)
+    // Seed the shared exercise catalogue
     await db.withTransactionAsync(async () => {
       for (const ex of EXERCISES) {
         await db.runAsync(
-          `INSERT OR IGNORE INTO exercises (id, name, category, muscle) VALUES (?, ?, ?, ?)`,
+          `INSERT OR IGNORE INTO exercises (id, name, category, muscle)
+           VALUES (?, ?, ?, ?)`,
           [ex.id, ex.name, ex.category, ex.muscle]
         );
       }
     });
 
-    await db.runAsync(`INSERT INTO _migrations (version) VALUES (1)`);
+    await db.runAsync(`INSERT OR REPLACE INTO _migrations (version) VALUES (2)`);
   }
 
-  // Future migrations go here, e.g.:
-  // if (currentVersion < 2) {
-  //   await db.execAsync(`ALTER TABLE workouts ADD COLUMN notes TEXT`);
-  //   await db.runAsync(`INSERT INTO _migrations (version) VALUES (2)`);
+  // ── Template for future migrations ──────────────────────────────────────────
+  // if (currentVersion < 3) {
+  //   await db.execAsync(`ALTER TABLE workouts ADD COLUMN rating INTEGER`);
+  //   await db.runAsync(`INSERT INTO _migrations (version) VALUES (3)`);
   // }
 }
 
-// ─── Template helpers ───────────────────────────────────────────────────────
+// ─── Internal helpers ─────────────────────────────────────────────────────────
 
-/** Returns all templates with their exercise list */
-export async function fetchTemplates() {
+const now = () => new Date().toISOString();
+
+/**
+ * Enqueue a row for sync and mark it pending.
+ * Called inside the same transaction as the data write so they succeed or fail
+ * together — the queue is never out of step with the local data.
+ */
+async function enqueue(db, tableName, rowId, operation, payload, userId) {
+  await db.runAsync(
+    `INSERT INTO sync_queue (table_name, row_id, operation, payload, user_id)
+     VALUES (?, ?, ?, ?, ?)`,
+    [tableName, rowId, operation, payload ? JSON.stringify(payload) : null, userId]
+  );
+}
+
+// ─── User profile ─────────────────────────────────────────────────────────────
+
+export async function getProfile(userId) {
+  const db = await getDb();
+  const row = await db.getFirstAsync(
+    `SELECT * FROM user_profiles WHERE user_id = ?`,
+    [userId]
+  );
+  return row ?? { user_id: userId };
+}
+
+export async function upsertProfile(userId, fields) {
+  const db = await getDb();
+  const ts = now();
+
+  await db.withTransactionAsync(async () => {
+    await db.runAsync(
+      `INSERT INTO user_profiles
+         (user_id, units, height_cm, weight_kg, body_fat_percentage, fitness_goals,
+          updated_at, sync_status)
+       VALUES (?, ?, ?, ?, ?, ?, ?, 'pending')
+       ON CONFLICT(user_id) DO UPDATE SET
+         units               = excluded.units,
+         height_cm           = excluded.height_cm,
+         weight_kg           = excluded.weight_kg,
+         body_fat_percentage = excluded.body_fat_percentage,
+         fitness_goals       = excluded.fitness_goals,
+         updated_at          = excluded.updated_at,
+         sync_status         = 'pending'`,
+      [
+        userId,
+        fields.units ?? 'kg',
+        fields.heightCm ?? null,
+        fields.weightKg ?? null,
+        fields.bodyFatPercentage ?? null,
+        fields.fitnessGoals ?? null,
+        ts,
+      ]
+    );
+
+    const profile = await db.getFirstAsync(
+      `SELECT * FROM user_profiles WHERE user_id = ?`, [userId]
+    );
+    await enqueue(db, 'user_profiles', userId, 'upsert', profile, userId);
+  });
+}
+
+// ─── Templates ────────────────────────────────────────────────────────────────
+
+/**
+ * Returns all non-deleted templates for a user, with their full exercise list.
+ * Only ever reads rows where deleted_at IS NULL — soft-deleted rows are
+ * invisible to the app but remain in the DB until the sync engine confirms the
+ * server has acknowledged the deletion.
+ */
+export async function fetchTemplates(userId) {
   const db = await getDb();
 
   const templates = await db.getAllAsync(
-    `SELECT * FROM templates ORDER BY created_at DESC`
+    `SELECT * FROM templates
+     WHERE user_id = ? AND deleted_at IS NULL
+     ORDER BY updated_at DESC`,
+    [userId]
   );
 
   for (const t of templates) {
@@ -126,51 +331,60 @@ export async function fetchTemplates() {
        ORDER BY te.position`,
       [t.id]
     );
-    t.exercises = rows;         // full exercise objects
+    t.exercises   = rows;
     t.exerciseIds = rows.map(r => r.id);
   }
 
   return templates;
 }
 
-/** Uses a template ID to access it */
-
-export async function fetchTemplateById(id) {
-  const templates = await fetchTemplates();
-  return templates.find(t => t.id === id) ?? null;
-}
-
-/** Checks if Name already exists */
-export async function templateNameExists(name, excludeId = null) {
+export async function fetchTemplateById(userId, templateId) {
   const db = await getDb();
 
-  const trimmedName = name.trim();
+  const t = await db.getFirstAsync(
+    `SELECT * FROM templates
+     WHERE id = ? AND user_id = ? AND deleted_at IS NULL`,
+    [templateId, userId]
+  );
+  if (!t) return null;
 
-  if (!trimmedName) return false;
+  const rows = await db.getAllAsync(
+    `SELECT e.id, e.name, e.category, e.muscle
+     FROM template_exercises te
+     JOIN exercises e ON e.id = te.exercise_id
+     WHERE te.template_id = ?
+     ORDER BY te.position`,
+    [t.id]
+  );
+  t.exercises   = rows;
+  t.exerciseIds = rows.map(r => r.id);
+  return t;
+}
 
-  if (excludeId) {
-    const row = await db.getFirstAsync(
-      `SELECT id FROM templates WHERE LOWER(name) = LOWER(?) AND id != ? LIMIT 1`,
-      [trimmedName, excludeId]
-    );
-    return !!row;
-  }
+export async function templateNameExists(userId, name, excludeId = null) {
+  const db = await getDb();
+  const trimmed = name.trim();
+  if (!trimmed) return false;
 
   const row = await db.getFirstAsync(
-    `SELECT id FROM templates WHERE LOWER(name) = LOWER(?) LIMIT 1`,
-    [trimmedName]
+    `SELECT id FROM templates
+     WHERE user_id = ? AND LOWER(name) = LOWER(?) AND deleted_at IS NULL
+       AND (? IS NULL OR id != ?)
+     LIMIT 1`,
+    [userId, trimmed, excludeId, excludeId]
   );
   return !!row;
 }
 
-/** Creates a new template. exerciseIds is string[] */
-export async function createTemplate(id, name, tag, exerciseIds) {
+export async function createTemplate(userId, id, name, tag, exerciseIds) {
   const db = await getDb();
+  const ts = now();
 
   await db.withTransactionAsync(async () => {
     await db.runAsync(
-      `INSERT INTO templates (id, name, tag, created_at) VALUES (?, ?, ?, ?)`,
-      [id, name.trim(), tag.trim(), new Date().toISOString()]
+      `INSERT INTO templates (id, user_id, name, tag, created_at, updated_at, sync_status)
+       VALUES (?, ?, ?, ?, ?, ?, 'pending')`,
+      [id, userId, name.trim(), (tag ?? '').trim(), ts, ts]
     );
 
     for (let i = 0; i < exerciseIds.length; i++) {
@@ -180,22 +394,28 @@ export async function createTemplate(id, name, tag, exerciseIds) {
         [generateId(), id, exerciseIds[i], i]
       );
     }
+
+    const template = await db.getFirstAsync(
+      `SELECT * FROM templates WHERE id = ?`, [id]
+    );
+    await enqueue(db, 'templates', id, 'upsert', { ...template, exerciseIds }, userId);
   });
 }
 
-/** Updates template name/tag and replaces its exercise list */
-export async function updateTemplate(id, name, tag, exerciseIds) {
+export async function updateTemplate(userId, id, name, tag, exerciseIds) {
   const db = await getDb();
+  const ts = now();
 
   await db.withTransactionAsync(async () => {
     await db.runAsync(
-      `UPDATE templates SET name = ?, tag = ? WHERE id = ?`,
-      [name.trim(), tag.trim(), id]
+      `UPDATE templates
+       SET name = ?, tag = ?, updated_at = ?, sync_status = 'pending'
+       WHERE id = ? AND user_id = ?`,
+      [name.trim(), (tag ?? '').trim(), ts, id, userId]
     );
 
     await db.runAsync(
-      `DELETE FROM template_exercises WHERE template_id = ?`,
-      [id]
+      `DELETE FROM template_exercises WHERE template_id = ?`, [id]
     );
 
     for (let i = 0; i < exerciseIds.length; i++) {
@@ -205,33 +425,62 @@ export async function updateTemplate(id, name, tag, exerciseIds) {
         [generateId(), id, exerciseIds[i], i]
       );
     }
+
+    const template = await db.getFirstAsync(
+      `SELECT * FROM templates WHERE id = ?`, [id]
+    );
+    await enqueue(db, 'templates', id, 'upsert', { ...template, exerciseIds }, userId);
   });
 }
 
-/** Deletes a template (cascade removes template_exercises) */
-export async function deleteTemplate(id) {
+/**
+ * Soft-delete: sets deleted_at instead of removing the row.
+ * The sync engine will push a 'delete' operation to the server, and once
+ * confirmed, a cleanup job can hard-delete old tombstones (e.g. > 30 days).
+ */
+export async function deleteTemplate(userId, id) {
   const db = await getDb();
-  await db.runAsync(`DELETE FROM templates WHERE id = ?`, [id]);
-}
-
-// ─── Workout helpers ────────────────────────────────────────────────────────
-
-export async function saveWorkout(workout) {
-  const db = await getDb();
+  const ts = now();
 
   await db.withTransactionAsync(async () => {
     await db.runAsync(
-      `INSERT INTO workouts (id, name, started_at, finished_at)
-       VALUES (?, ?, ?, ?)`,
-      [workout.id, workout.name, workout.startedAt, workout.finishedAt]
+      `UPDATE templates
+       SET deleted_at = ?, updated_at = ?, sync_status = 'pending'
+       WHERE id = ? AND user_id = ?`,
+      [ts, ts, id, userId]
+    );
+
+    await enqueue(db, 'templates', id, 'delete', null, userId);
+  });
+}
+
+// ─── Workouts ─────────────────────────────────────────────────────────────────
+
+export async function saveWorkout(userId, workout) {
+  const db = await getDb();
+  const ts = now();
+
+  await db.withTransactionAsync(async () => {
+    await db.runAsync(
+      `INSERT INTO workouts
+         (id, user_id, name, started_at, finished_at, notes,
+          created_at, updated_at, sync_status)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'pending')`,
+      [
+        workout.id, userId, workout.name,
+        workout.startedAt, workout.finishedAt,
+        workout.notes ?? null,
+        ts, ts,
+      ]
     );
 
     for (let i = 0; i < workout.exercises.length; i++) {
-      const ex = workout.exercises[i];
+      const ex    = workout.exercises[i];
       const wexId = generateId();
 
       await db.runAsync(
-        `INSERT INTO workout_exercises (id, workout_id, exercise_id, name, muscle, category, position)
+        `INSERT INTO workout_exercises
+           (id, workout_id, exercise_id, name, muscle, category, position)
          VALUES (?, ?, ?, ?, ?, ?, ?)`,
         [wexId, workout.id, ex.exerciseId, ex.name, ex.muscle, ex.category, i]
       );
@@ -239,32 +488,48 @@ export async function saveWorkout(workout) {
       for (let j = 0; j < ex.sets.length; j++) {
         const s = ex.sets[j];
         await db.runAsync(
-          `INSERT INTO workout_sets (id, workout_exercise_id, weight, reps, position)
-           VALUES (?, ?, ?, ?, ?)`,
-          [generateId(), wexId, s.weight, s.reps, j]
+          `INSERT INTO workout_sets
+             (id, workout_exercise_id, weight, reps, rpe, notes, position)
+           VALUES (?, ?, ?, ?, ?, ?, ?)`,
+          [
+            generateId(), wexId,
+            s.weight, s.reps,
+            s.rpe   ?? null,
+            s.notes ?? null,
+            j,
+          ]
         );
       }
     }
+
+    // Enqueue a denormalised snapshot so the sync engine can push the entire
+    // workout in one API call without re-querying.
+    await enqueue(db, 'workouts', workout.id, 'upsert', { ...workout, userId }, userId);
   });
 }
 
-export async function fetchWorkouts() {
+export async function fetchWorkouts(userId) {
   const db = await getDb();
 
   const workouts = await db.getAllAsync(
-    `SELECT * FROM workouts ORDER BY finished_at DESC`
+    `SELECT * FROM workouts
+     WHERE user_id = ? AND deleted_at IS NULL
+     ORDER BY finished_at DESC`,
+    [userId]
   );
 
   for (const w of workouts) {
     const wexRows = await db.getAllAsync(
-      `SELECT * FROM workout_exercises WHERE workout_id = ? ORDER BY position`,
+      `SELECT * FROM workout_exercises
+       WHERE workout_id = ? ORDER BY position`,
       [w.id]
     );
 
     w.exercises = await Promise.all(
       wexRows.map(async (wex) => {
         const sets = await db.getAllAsync(
-          `SELECT weight, reps FROM workout_sets
+          `SELECT id, weight, reps, rpe, notes
+           FROM workout_sets
            WHERE workout_exercise_id = ? ORDER BY position`,
           [wex.id]
         );
@@ -276,13 +541,182 @@ export async function fetchWorkouts() {
   return workouts;
 }
 
+/**
+ * Soft-delete a workout. History is precious — never hard-delete until the
+ * server has confirmed receipt of the tombstone.
+ */
+export async function deleteWorkout(userId, id) {
+  const db = await getDb();
+  const ts = now();
+
+  await db.withTransactionAsync(async () => {
+    await db.runAsync(
+      `UPDATE workouts
+       SET deleted_at = ?, updated_at = ?, sync_status = 'pending'
+       WHERE id = ? AND user_id = ?`,
+      [ts, ts, id, userId]
+    );
+
+    await enqueue(db, 'workouts', id, 'delete', null, userId);
+  });
+}
+
+// ─── Sync engine interface ────────────────────────────────────────────────────
+//
+// These functions are the surface the future sync service will call.
+// The app itself never calls them — only the background sync task does.
+
+/**
+ * Returns all queued operations for a user, oldest first.
+ * The sync service pops these, sends them to the server, then calls
+ * markSynced() or markConflict() depending on the server response.
+ */
+export async function getPendingSyncQueue(userId) {
+  const db = await getDb();
+  return db.getAllAsync(
+    `SELECT * FROM sync_queue
+     WHERE user_id = ? ORDER BY id ASC`,
+    [userId]
+  );
+}
+
+/**
+ * Called after the server confirms it received and accepted a row.
+ */
+export async function markSynced(userId, tableName, rowId, queueId) {
+  const db = await getDb();
+  const ts = now();
+
+  await db.withTransactionAsync(async () => {
+    await db.runAsync(
+      `UPDATE ${tableName}
+       SET synced_at = ?, sync_status = 'synced'
+       WHERE id = ? AND user_id = ?`,
+      [ts, rowId, userId]
+    );
+
+    await db.runAsync(`DELETE FROM sync_queue WHERE id = ?`, [queueId]);
+  });
+}
+
+/**
+ * Called when the server rejects a row (e.g. a newer version exists).
+ * Marks the row as 'conflict' so the UI can surface it to the user.
+ */
+export async function markConflict(queueId, errorMessage) {
+  const db = await getDb();
+  await db.runAsync(
+    `UPDATE sync_queue
+     SET attempts = attempts + 1, last_error = ?
+     WHERE id = ?`,
+    [errorMessage, queueId]
+  );
+}
+
+/**
+ * Applies a batch of rows received from the server (e.g. after login on a new
+ * device, or after a pull sync). Rows are written with sync_status = 'synced'
+ * because they came from the server — no need to push them back.
+ *
+ * Uses INSERT OR REPLACE so this is safe to call repeatedly (idempotent).
+ * Child rows (template_exercises, workout_sets) are replaced wholesale with
+ * their parent, matching the write path above.
+ */
+export async function applyServerTemplates(templates) {
+  const db = await getDb();
+
+  await db.withTransactionAsync(async () => {
+    for (const t of templates) {
+      await db.runAsync(
+        `INSERT OR REPLACE INTO templates
+           (id, user_id, name, tag, created_at, updated_at,
+            deleted_at, synced_at, sync_status)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'synced')`,
+        [t.id, t.user_id, t.name, t.tag, t.created_at,
+         t.updated_at, t.deleted_at ?? null, now()]
+      );
+
+      if (!t.deleted_at) {
+        await db.runAsync(
+          `DELETE FROM template_exercises WHERE template_id = ?`, [t.id]
+        );
+        for (let i = 0; i < (t.exercise_ids ?? []).length; i++) {
+          await db.runAsync(
+            `INSERT INTO template_exercises (id, template_id, exercise_id, position)
+             VALUES (?, ?, ?, ?)`,
+            [generateId(), t.id, t.exercise_ids[i], i]
+          );
+        }
+      }
+    }
+  });
+}
+
+export async function applyServerWorkouts(workouts) {
+  const db = await getDb();
+
+  await db.withTransactionAsync(async () => {
+    for (const w of workouts) {
+      await db.runAsync(
+        `INSERT OR REPLACE INTO workouts
+           (id, user_id, name, started_at, finished_at, notes,
+            created_at, updated_at, deleted_at, synced_at, sync_status)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'synced')`,
+        [w.id, w.user_id, w.name, w.started_at, w.finished_at,
+         w.notes ?? null, w.created_at, w.updated_at,
+         w.deleted_at ?? null, now()]
+      );
+
+      if (!w.deleted_at) {
+        // Replace child rows wholesale
+        const wexRows = await db.getAllAsync(
+          `SELECT id FROM workout_exercises WHERE workout_id = ?`, [w.id]
+        );
+        for (const wex of wexRows) {
+          await db.runAsync(
+            `DELETE FROM workout_sets WHERE workout_exercise_id = ?`, [wex.id]
+          );
+        }
+        await db.runAsync(
+          `DELETE FROM workout_exercises WHERE workout_id = ?`, [w.id]
+        );
+
+        for (let i = 0; i < (w.exercises ?? []).length; i++) {
+          const ex    = w.exercises[i];
+          const wexId = generateId();
+
+          await db.runAsync(
+            `INSERT INTO workout_exercises
+               (id, workout_id, exercise_id, name, muscle, category, position)
+             VALUES (?, ?, ?, ?, ?, ?, ?)`,
+            [wexId, w.id, ex.exercise_id, ex.name, ex.muscle, ex.category, i]
+          );
+
+          for (let j = 0; j < (ex.sets ?? []).length; j++) {
+            const s = ex.sets[j];
+            await db.runAsync(
+              `INSERT INTO workout_sets
+                 (id, workout_exercise_id, weight, reps, rpe, notes, position)
+               VALUES (?, ?, ?, ?, ?, ?, ?)`,
+              [generateId(), wexId, s.weight, s.reps,
+               s.rpe ?? null, s.notes ?? null, j]
+            );
+          }
+        }
+      }
+    }
+  });
+}
+
+// ─── Shared utility (used by WorkoutLogger) ───────────────────────────────────
+
 export function buildExercisesFromTemplate(exercises) {
   return exercises.map(def => ({
-    id: generateId(),
+    id:         generateId(),
     exerciseId: def.id,
-    name: def.name,
-    muscle: def.muscle,
-    category: def.category,
-    sets: [{ id: generateId(), weight: '', reps: '' }],
+    name:       def.name,
+    muscle:     def.muscle,
+    category:   def.category,
+    sets: [{ id: generateId(), weight: '', reps: '', rpe: null, notes: '' }],
   }));
 }
