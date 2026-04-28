@@ -10,10 +10,13 @@ import {
   Platform,
 } from 'react-native';
 import { saveWorkout } from '../utils/db';
+import { syncPendingWorkouts } from '../services/syncService';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import ExerciseCard from '../components/ExerciseCard';
 import ExercisePicker from '../components/ExercisePicker';
 import { generateId } from '../utils/id';
+
+const USER_ID = 'user-001'; // TODO: replace with useAuth() when accounts land
 
 export default function WorkoutLogger({ navigation, route }) {
   const {
@@ -27,7 +30,7 @@ export default function WorkoutLogger({ navigation, route }) {
   const [errorMsg, setErrorMsg] = useState('');
   const [startTime] = useState(new Date());
 
-  // --- Handlers ---
+  // ── Handlers ────────────────────────────────────────────────────────────────
 
   const handleAddExercise = useCallback((exerciseDef) => {
     const newExercise = {
@@ -54,6 +57,7 @@ export default function WorkoutLogger({ navigation, route }) {
   }, []);
 
   const handleFinishWorkout = async () => {
+    // ── Validation ───────────────────────────────────────────────────────────
     if (exercises.length === 0) {
       setErrorMsg('Please add at least one exercise before finishing.');
       return;
@@ -61,9 +65,9 @@ export default function WorkoutLogger({ navigation, route }) {
 
     for (const ex of exercises) {
       for (const s of ex.sets) {
-        const hasRPE = s.rpe !== null && s.rpe !== undefined;
+        const hasRPE    = s.rpe !== null && s.rpe !== undefined;
         const hasWeight = s.weight !== '' && parseFloat(s.weight) > 0;
-        const hasReps = s.reps !== '' && parseInt(s.reps, 10) > 0;
+        const hasReps   = s.reps   !== '' && parseInt(s.reps, 10) > 0;
 
         if (hasRPE && (!hasWeight || !hasReps)) {
           Alert.alert(
@@ -75,29 +79,43 @@ export default function WorkoutLogger({ navigation, route }) {
       }
     }
 
+    // ── Build workout object ─────────────────────────────────────────────────
     const workout = {
-      id: generateId(),
-      name: workoutName.trim() || 'Unnamed Workout',
-      startedAt: startTime.toISOString(),
+      id:         generateId(),
+      name:       workoutName.trim() || 'Unnamed Workout',
+      startedAt:  startTime.toISOString(),
       finishedAt: new Date().toISOString(),
       exercises: exercises.map(ex => ({
         exerciseId: ex.exerciseId,
-        name: ex.name,
-        muscle: ex.muscle,
-        category: ex.category,
+        name:       ex.name,
+        muscle:     ex.muscle,
+        category:   ex.category,
         sets: ex.sets.map(s => ({
           weight: parseFloat(s.weight) || 0,
-          reps: parseInt(s.reps, 10) || 0,
-          rpe: s.rpe || null,
-          notes: s.notes || '',
-          timestamp: new Date().toISOString(),
+          reps:   parseInt(s.reps, 10) || 0,
+          rpe:    s.rpe   || null,
+          notes:  s.notes || '',
         })),
       })),
     };
 
     try {
-      await saveWorkout(workout);
-      navigation.replace('WorkoutHistory');
+      // 1. Write to local SQLite immediately — this always succeeds offline.
+      //    The workout is now safe on-device regardless of connectivity.
+      await saveWorkout(USER_ID, workout);
+
+      // 2. Attempt to flush the sync queue in the background.
+      //    If offline, this is a no-op and the queue will drain automatically
+      //    the next time the device reconnects (via startSyncOnReconnect).
+      syncPendingWorkouts(USER_ID).catch(() => {
+        // Silently swallow — sync failure is not a user-facing error.
+        // The workout is already safe in SQLite.
+      });
+
+      // 3. Navigate to the History tab so the user sees their saved workout.
+      //    We use navigate to the tab rather than replace so the back-stack
+      //    inside HomeNavigator is preserved if they go back to Home.
+      navigation.navigate('HistoryTab');
     } catch (e) {
       Alert.alert('Error', 'Could not save workout. Please try again.');
     }
@@ -244,12 +262,8 @@ const styles = StyleSheet.create({
     fontWeight: '800',
     letterSpacing: 0.5,
   },
-  scroll: {
-    flex: 1,
-  },
-  scrollContent: {
-    padding: 16,
-  },
+  scroll: { flex: 1 },
+  scrollContent: { padding: 16 },
   errorBanner: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -261,9 +275,7 @@ const styles = StyleSheet.create({
     borderColor: '#FF6B6B44',
     gap: 10,
   },
-  errorIcon: {
-    fontSize: 16,
-  },
+  errorIcon: { fontSize: 16 },
   errorText: {
     flex: 1,
     color: '#FF6B6B',
