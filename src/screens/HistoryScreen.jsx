@@ -168,12 +168,17 @@ function WorkoutCard({ workout }) {
               </View>
               <View style={styles.exerciseRight}>
                 {ex.sets.map((s, j) => (
-                  <Text key={j} style={styles.setDetail}>
-                    {s.weight > 0 ? `${s.weight}kg` : '—'}
-                    {' × '}
-                    {s.reps > 0 ? s.reps : '—'}
-                    {s.rpe ? `  RPE ${s.rpe}` : ''}
-                  </Text>
+                  <View key={j} style={styles.setBlock}>
+                    <Text style={styles.setDetail}>
+                      {s.weight > 0 ? `${s.weight}kg` : '—'}
+                      {' × '}
+                      {s.reps > 0 ? s.reps : '—'}
+                      {s.rpe ? `  RPE ${s.rpe}` : ''}
+                    </Text>
+                    {s.notes ? (
+                      <Text style={styles.setNote}>{s.notes}</Text>
+                    ) : null}
+                  </View>
                 ))}
               </View>
             </View>
@@ -437,11 +442,20 @@ const styles = StyleSheet.create({
     marginTop: 2,
   },
   exerciseRight: { alignItems: 'flex-end' },
+  setBlock: {
+    alignItems: 'flex-end',
+    marginBottom: 4,
+  },
   setDetail: {
     fontSize: 12,
     color: '#888',
     fontWeight: '500',
-    marginBottom: 2,
     fontVariant: ['tabular-nums'],
+  },
+  setNote: {
+    fontSize: 11,
+    color: '#555',
+    fontStyle: 'italic',
+    marginTop: 1,
   },
 });

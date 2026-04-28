@@ -112,10 +112,8 @@ export default function WorkoutLogger({ navigation, route }) {
         // The workout is already safe in SQLite.
       });
 
-      // 3. Navigate to the History tab so the user sees their saved workout.
-      //    We use navigate to the tab rather than replace so the back-stack
-      //    inside HomeNavigator is preserved if they go back to Home.
-      navigation.navigate('HistoryTab');
+      // 3. Pop back to Home — the workout is saved, the user is done.
+      navigation.navigate('Home');
     } catch (e) {
       Alert.alert('Error', 'Could not save workout. Please try again.');
     }
