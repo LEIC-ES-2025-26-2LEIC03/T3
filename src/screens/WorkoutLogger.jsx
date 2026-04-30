@@ -9,7 +9,8 @@ import {
   KeyboardAvoidingView,
   Platform,
 } from 'react-native';
-import { saveWorkout } from '../utils/db';
+import { saveWorkout } from '../utils/firestoreDb';
+import { auth } from '../utils/firebaseConfig';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import ExerciseCard from '../components/ExerciseCard';
 import ExercisePicker from '../components/ExercisePicker';
@@ -96,7 +97,8 @@ export default function WorkoutLogger({ navigation, route }) {
     };
 
     try {
-      await saveWorkout(workout);
+      const userId = auth.currentUser?.uid;
+      await saveWorkout(userId, workout);
       navigation.replace('WorkoutHistory');
     } catch (e) {
       Alert.alert('Error', 'Could not save workout. Please try again.');

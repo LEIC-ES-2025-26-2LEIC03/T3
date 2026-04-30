@@ -244,6 +244,12 @@ async function migrate(db) {
 
 const now = () => new Date().toISOString();
 
+// markSynced table name whitelist (SQL injection prevention).
+// tableName comes from the sync_queue row which is written by app code, but
+// whitelisting here ensures a corrupt or malicious queue entry can never
+// execute arbitrary SQL through the dynamic UPDATE statement in markSynced().
+const SYNCABLE_TABLES = new Set(['templates', 'workouts', 'user_profiles']);
+
 /**
  * Enqueue a row for sync and mark it pending.
  * Called inside the same transaction as the data write so they succeed or fail
@@ -322,19 +328,35 @@ export async function fetchTemplates(userId) {
     [userId]
   );
 
+  if (templates.length === 0){
+    return [];
+  }
+
+  // Build a safe IN list of quoted IDs — these are our own UUIDs so no
+  // injection risk, but we still avoid the placeholder limit on large lists.
+  const idList = templates.map(t => `'${t.id}'`).join(',');
+
+  const exerciseRows = await db.getAllAsync(
+    `SELECT te.template_id, e.id, e.name, e.category, e.muscle
+     FROM template_exercises te
+     JOIN exercises e ON e.id = te.exercise_id
+     WHERE te.template_id IN (${idList})
+     ORDER BY te.template_id, te.position`
+  );
+ 
+  // Group exercise rows under their parent template in one pass
+  const exercisesByTemplate = new Map(templates.map(t => [t.id, []]));
+  for (const row of exerciseRows) {
+    const { template_id, ...exercise } = row;
+    exercisesByTemplate.get(template_id)?.push(exercise);
+  }
+ 
   for (const t of templates) {
-    const rows = await db.getAllAsync(
-      `SELECT e.id, e.name, e.category, e.muscle
-       FROM template_exercises te
-       JOIN exercises e ON e.id = te.exercise_id
-       WHERE te.template_id = ?
-       ORDER BY te.position`,
-      [t.id]
-    );
+    const rows    = exercisesByTemplate.get(t.id) ?? [];
     t.exercises   = rows;
     t.exerciseIds = rows.map(r => r.id);
   }
-
+ 
   return templates;
 }
 
@@ -518,27 +540,66 @@ export async function fetchWorkouts(userId) {
     [userId]
   );
 
-  for (const w of workouts) {
-    const wexRows = await db.getAllAsync(
-      `SELECT * FROM workout_exercises
-       WHERE workout_id = ? ORDER BY position`,
-      [w.id]
-    );
-
-    w.exercises = await Promise.all(
-      wexRows.map(async (wex) => {
-        const sets = await db.getAllAsync(
-          `SELECT id, weight, reps, rpe, notes
-           FROM workout_sets
-           WHERE workout_exercise_id = ? ORDER BY position`,
-          [wex.id]
-        );
-        return { ...wex, sets };
-      })
-    );
+  if (workouts.length === 0){
+    return [];
   }
 
-  return workouts;
+  const idList = workouts.map(w => `'${w.id}'`).join(',');
+ 
+  const rows = await db.getAllAsync(
+    `SELECT
+       we.id          AS wex_id,
+       we.workout_id,
+       we.exercise_id,
+       we.name        AS ex_name,
+       we.muscle,
+       we.category,
+       we.position    AS ex_position,
+       ws.id          AS set_id,
+       ws.weight,
+       ws.reps,
+       ws.rpe,
+       ws.notes       AS set_notes,
+       ws.position    AS set_position
+     FROM workout_exercises we
+     LEFT JOIN workout_sets ws ON ws.workout_exercise_id = we.id
+     WHERE we.workout_id IN (${idList})
+     ORDER BY we.workout_id, we.position, ws.position`
+  );
+ 
+  // Build lookup maps so we only iterate the row list once
+  const workoutMap = new Map(workouts.map(w => [w.id, { ...w, exercises: [] }]));
+  const exMap      = new Map();
+ 
+  for (const row of rows) {
+    const workout = workoutMap.get(row.workout_id);
+    if (!workout) continue;
+ 
+    if (!exMap.has(row.wex_id)) {
+      const ex = {
+        id:         row.wex_id,
+        exerciseId: row.exercise_id,
+        name:       row.ex_name,
+        muscle:     row.muscle,
+        category:   row.category,
+        sets:       [],
+      };
+      exMap.set(row.wex_id, ex);
+      workout.exercises.push(ex);
+    }
+ 
+    if (row.set_id) {
+      exMap.get(row.wex_id).sets.push({
+        id:     row.set_id,
+        weight: row.weight,
+        reps:   row.reps,
+        rpe:    row.rpe,
+        notes:  row.set_notes,
+      });
+    }
+  }
+ 
+  return [...workoutMap.values()];
 }
 
 /**
@@ -571,12 +632,13 @@ export async function deleteWorkout(userId, id) {
  * The sync service pops these, sends them to the server, then calls
  * markSynced() or markConflict() depending on the server response.
  */
-export async function getPendingSyncQueue(userId) {
+export async function getPendingSyncQueue(userId, maxAttempts = 5) {
   const db = await getDb();
   return db.getAllAsync(
     `SELECT * FROM sync_queue
-     WHERE user_id = ? ORDER BY id ASC`,
-    [userId]
+     WHERE user_id = ? AND attempts < ?
+     ORDER BY id ASC`,
+    [userId, maxAttempts]
   );
 }
 
@@ -584,6 +646,11 @@ export async function getPendingSyncQueue(userId) {
  * Called after the server confirms it received and accepted a row.
  */
 export async function markSynced(userId, tableName, rowId, queueId) {
+  // Guard: only known tables may be updated this way
+  if (!SYNCABLE_TABLES.has(tableName)) {
+    throw new Error(`markSynced: unknown table "${tableName}" — rejected to prevent SQL injection`);
+  }
+
   const db = await getDb();
   const ts = now();
 
@@ -668,15 +735,6 @@ export async function applyServerWorkouts(workouts) {
       );
 
       if (!w.deleted_at) {
-        // Replace child rows wholesale
-        const wexRows = await db.getAllAsync(
-          `SELECT id FROM workout_exercises WHERE workout_id = ?`, [w.id]
-        );
-        for (const wex of wexRows) {
-          await db.runAsync(
-            `DELETE FROM workout_sets WHERE workout_exercise_id = ?`, [wex.id]
-          );
-        }
         await db.runAsync(
           `DELETE FROM workout_exercises WHERE workout_id = ?`, [w.id]
         );

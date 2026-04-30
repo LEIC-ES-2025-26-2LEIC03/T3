@@ -1,13 +1,14 @@
-import React, { useState, useCallback, useRef } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { View, Text, ScrollView, StyleSheet, ActivityIndicator, Alert } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useFocusEffect } from '@react-navigation/native';
 import StartWorkoutActions from '../components/StartWorkoutActions';
 import TemplateCard from '../components/TemplateCard';
-import { fetchTemplates, buildExercisesFromTemplate, deleteTemplate } from '../utils/db';
+import { fetchTemplates, buildExercisesFromTemplate, deleteTemplate } from '../utils/firestoreDb';
 import { TEMPLATES as EXAMPLE_TEMPLATES, buildExercisesFromTemplate as buildFromStatic } from '../data/templates';
-
-const USER_ID = 'user-001'; // TODO: replace with useAuth() when accounts land
+import { auth, db } from '../utils/firebaseConfig';
+import { onAuthStateChanged,signInAnonymously } from 'firebase/auth';
+import { doc, setDoc } from 'firebase/firestore';
 
 export default function HomeScreen({ navigation }) {
   const insets = useSafeAreaInsets();
@@ -17,6 +18,7 @@ export default function HomeScreen({ navigation }) {
     day: 'numeric',
   });
 
+  const [userId, setUserId] = useState('test-user-123');
   const [templates, setTemplates] = useState([]);
   const [loading, setLoading] = useState(true);
   // Track whether this is the very first load — subsequent focus events
@@ -25,17 +27,22 @@ export default function HomeScreen({ navigation }) {
 
   useFocusEffect(
     useCallback(() => {
+      if (!userId) {
+        setTemplates([]);
+        setLoading(false);
+        return;
+      }
       if (!hasLoadedOnce.current) {
         // First mount: show spinner
         setLoading(true);
       }
-      fetchTemplates(USER_ID)
+      fetchTemplates(userId)
         .then(setTemplates)
         .finally(() => {
           setLoading(false);
           hasLoadedOnce.current = true;
         });
-    }, [])
+    }, [userId])
   );
 
   const handleStartEmpty = () => {
@@ -77,7 +84,8 @@ export default function HomeScreen({ navigation }) {
           text: 'Delete',
           style: 'destructive',
           onPress: async () => {
-            await deleteTemplate(USER_ID, template.id);
+            if (!userId) return;
+            await deleteTemplate(userId, template.id);
             setTemplates(prev => prev.filter(t => t.id !== template.id));
           },
         },
