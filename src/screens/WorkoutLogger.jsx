@@ -9,8 +9,8 @@ import {
   KeyboardAvoidingView,
   Platform,
 } from 'react-native';
-import { saveWorkout } from '../utils/db';
-import { syncPendingWorkouts } from '../services/syncService';
+import { saveWorkout } from '../utils/firestoreDb';
+import { auth } from '../utils/firebaseConfig';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import ExerciseCard from '../components/ExerciseCard';
 import ExercisePicker from '../components/ExercisePicker';
@@ -100,20 +100,9 @@ export default function WorkoutLogger({ navigation, route }) {
     };
 
     try {
-      // 1. Write to local SQLite immediately — this always succeeds offline.
-      //    The workout is now safe on-device regardless of connectivity.
-      await saveWorkout(USER_ID, workout);
-
-      // 2. Attempt to flush the sync queue in the background.
-      //    If offline, this is a no-op and the queue will drain automatically
-      //    the next time the device reconnects (via startSyncOnReconnect).
-      syncPendingWorkouts(USER_ID).catch(() => {
-        // Silently swallow — sync failure is not a user-facing error.
-        // The workout is already safe in SQLite.
-      });
-
-      // 3. Pop back to Home — the workout is saved, the user is done.
-      navigation.navigate('Home');
+      const userId = auth.currentUser?.uid;
+      await saveWorkout(userId, workout);
+      navigation.replace('WorkoutHistory');
     } catch (e) {
       Alert.alert('Error', 'Could not save workout. Please try again.');
     }

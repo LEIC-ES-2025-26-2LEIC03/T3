@@ -21,9 +21,9 @@ import {
   fetchTemplates,
   fetchTemplateById,
   templateNameExists,
-} from '../utils/db';
+} from '../utils/firestoreDb';
+import { auth } from '../utils/firebaseConfig';
 
-const USER_ID = 'user-001'; // TODO: replace with useAuth() when accounts land
 
 const TAG_OPTIONS = ['Push', 'Pull', 'Legs', 'Full Upper', 'Full Body', 'Core', 'Cardio', 'Custom'];
 
@@ -32,6 +32,7 @@ export default function TemplateBuilder({ navigation, route }) {
   const duplicateFromTemplateId = route?.params?.duplicateFromTemplateId ?? null;
   const isDuplicateMode = !!duplicateFromTemplateId;
 
+  const userId = auth.currentUser?.uid;
   const [name, setName] = useState('');
   const [tag, setTag] = useState('');
   const [selectedExercises, setSelectedExercises] = useState([]); // [{id, name, muscle, category}]
@@ -44,7 +45,7 @@ export default function TemplateBuilder({ navigation, route }) {
   const sourceId = editingId ?? duplicateFromTemplateId;
   if (!sourceId) return;
 
-  fetchTemplates(USER_ID)
+  fetchTemplates(userId)
     .then(templates => {
       const t = templates.find(t => t.id === sourceId);
 
@@ -118,7 +119,7 @@ export default function TemplateBuilder({ navigation, route }) {
 
   try {
     if (isDuplicateMode) {
-      const source = await fetchTemplateById(USER_ID, duplicateFromTemplateId);
+      const source = await fetchTemplateById(userId, duplicateFromTemplateId);
 
       if (!source) {
         Alert.alert(
@@ -130,7 +131,7 @@ export default function TemplateBuilder({ navigation, route }) {
     }
 
     const nameTaken = await templateNameExists(
-      USER_ID,
+      userId,
       trimmedName,
       editingId && !isDuplicateMode ? editingId : null
     );
@@ -146,9 +147,9 @@ export default function TemplateBuilder({ navigation, route }) {
     const exerciseIds = selectedExercises.map(e => e.id);
 
     if (editingId && !isDuplicateMode) {
-      await updateTemplate(USER_ID, editingId, trimmedName, tag, exerciseIds);
+      await updateTemplate(userId, editingId, trimmedName, tag, exerciseIds);
     } else {
-      await createTemplate(USER_ID, generateId(), trimmedName, tag, exerciseIds);
+      await createTemplate(userId, generateId(), trimmedName, tag, exerciseIds);
     }
 
     navigation.goBack();
