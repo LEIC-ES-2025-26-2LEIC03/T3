@@ -40,3 +40,6 @@ yarn-error.*
 ironlog.keystore
 *.keystore
 *.jks
+
+# Firebase API
+.env
