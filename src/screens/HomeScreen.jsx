@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback, useRef } from 'react';
+import React, { useState, useCallback, useRef } from 'react';
 import { View, Text, ScrollView, StyleSheet, ActivityIndicator, Alert } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useFocusEffect } from '@react-navigation/native';
@@ -6,9 +6,7 @@ import StartWorkoutActions from '../components/StartWorkoutActions';
 import TemplateCard from '../components/TemplateCard';
 import { fetchTemplates, buildExercisesFromTemplate, deleteTemplate } from '../utils/firestoreDb';
 import { TEMPLATES as EXAMPLE_TEMPLATES, buildExercisesFromTemplate as buildFromStatic } from '../data/templates';
-import { auth, db } from '../utils/firebaseConfig';
-import { onAuthStateChanged,signInAnonymously } from 'firebase/auth';
-import { doc, setDoc } from 'firebase/firestore';
+import { auth } from '../utils/firebaseConfig';
 
 export default function HomeScreen({ navigation }) {
   const insets = useSafeAreaInsets();
@@ -18,7 +16,7 @@ export default function HomeScreen({ navigation }) {
     day: 'numeric',
   });
 
-  const [userId, setUserId] = useState('test-user-123');
+  const userId = auth.currentUser?.uid;
   const [templates, setTemplates] = useState([]);
   const [loading, setLoading] = useState(true);
   // Track whether this is the very first load — subsequent focus events

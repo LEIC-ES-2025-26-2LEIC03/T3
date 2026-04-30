@@ -32,7 +32,7 @@ export default function TemplateBuilder({ navigation, route }) {
   const duplicateFromTemplateId = route?.params?.duplicateFromTemplateId ?? null;
   const isDuplicateMode = !!duplicateFromTemplateId;
 
-  const [userId, setUserId] = useState('test-user-123');
+  const userId = auth.currentUser?.uid;
   const [name, setName] = useState('');
   const [tag, setTag] = useState('');
   const [selectedExercises, setSelectedExercises] = useState([]); // [{id, name, muscle, category}]

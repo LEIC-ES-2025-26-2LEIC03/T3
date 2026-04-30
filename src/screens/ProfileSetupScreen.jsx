@@ -14,9 +14,8 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { saveUserProfile, updateProfile } from '../services/profileService';
 import { auth } from '../utils/firebaseConfig';
 
-const USER_ID = auth.currentUser?.uid;
-
 export default function ProfileSetupScreen({ navigation }) {
+  const USER_ID = auth.currentUser?.uid;
   // ── US-03: unit preference ──────────────────────────────────────────────
   const [units, setUnits] = useState('kg');
 

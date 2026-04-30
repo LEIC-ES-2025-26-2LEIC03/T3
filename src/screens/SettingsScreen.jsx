@@ -1,20 +1,62 @@
-import React from 'react';
-import { View, Text, StyleSheet } from 'react-native';
+import React, { useState } from 'react';
+import { View, Text, TouchableOpacity, StyleSheet, Alert, ActivityIndicator } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { logout } from '../services/authService';
 
 export default function SettingsScreen() {
   const insets = useSafeAreaInsets();
+  const [loggingOut, setLoggingOut] = useState(false);
+
+  const handleLogout = () => {
+    Alert.alert(
+      'Log Out',
+      'Are you sure you want to log out?',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Log Out',
+          style: 'destructive',
+          onPress: async () => {
+            setLoggingOut(true);
+            try {
+              await logout();
+              // onAuthStateChanged in App.jsx will automatically
+              // swap to the Login screen
+            } catch {
+              Alert.alert('Error', 'Could not log out. Please try again.');
+              setLoggingOut(false);
+            }
+          },
+        },
+      ]
+    );
+  };
+
   return (
     <View style={[styles.safe, { paddingTop: insets.top }]}>
       <View style={styles.topBar}>
         <Text style={styles.title}>Settings</Text>
       </View>
+
       <View style={styles.body}>
-        <Text style={styles.icon}>⚙️</Text>
-        <Text style={styles.heading}>Coming Soon</Text>
-        <Text style={styles.sub}>
-          App settings and preferences will appear here once this feature is implemented.
-        </Text>
+        {/* ── Settings items can be added here later ──────────────── */}
+
+        {/* ── Log Out button ─────────────────────────────────────── */}
+        <TouchableOpacity
+          style={styles.logoutBtn}
+          onPress={handleLogout}
+          disabled={loggingOut}
+          activeOpacity={0.7}
+        >
+          {loggingOut ? (
+            <ActivityIndicator color="#FF6B6B" />
+          ) : (
+            <>
+              <Text style={styles.logoutIcon}>⏻</Text>
+              <Text style={styles.logoutText}>Log Out</Text>
+            </>
+          )}
+        </TouchableOpacity>
       </View>
     </View>
   );
@@ -39,24 +81,30 @@ const styles = StyleSheet.create({
   },
   body: {
     flex: 1,
+    paddingHorizontal: 16,
+    paddingTop: 16,
+    justifyContent: 'space-between',
+    paddingBottom: 32,
+  },
+  logoutBtn: {
+    flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    paddingHorizontal: 40,
-    gap: 12,
+    backgroundColor: '#1A1215',
+    borderRadius: 14,
+    paddingVertical: 16,
+    borderWidth: 1,
+    borderColor: '#FF6B6B33',
+    gap: 10,
   },
-  icon: {
-    fontSize: 48,
-    marginBottom: 8,
+  logoutIcon: {
+    fontSize: 18,
+    color: '#FF6B6B',
   },
-  heading: {
-    fontSize: 20,
+  logoutText: {
+    fontSize: 15,
     fontWeight: '700',
-    color: '#444',
-  },
-  sub: {
-    fontSize: 14,
-    color: '#333',
-    textAlign: 'center',
-    lineHeight: 22,
+    color: '#FF6B6B',
+    letterSpacing: 0.3,
   },
 });

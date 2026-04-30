@@ -14,9 +14,8 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { getProfile, saveUserProfile, updateProfile } from '../services/profileService';
 import { auth } from '../utils/firebaseConfig';
 
-const USER_ID = auth.currentUser?.uid;
-
 export default function BodyMetricsScreen({ navigation }) {
+  const USER_ID = auth.currentUser?.uid;
   const [units, setUnits] = useState('kg');
   const [height, setHeight] = useState('');
   const [weight, setWeight] = useState('');
