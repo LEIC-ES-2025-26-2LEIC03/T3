@@ -94,7 +94,7 @@ function WorkoutCard({ workout }) {
 
   const totalSets   = workout.exercises?.reduce((n, ex) => n + ex.sets.length, 0) ?? 0;
   const totalVolume = workout.exercises?.reduce((vol, ex) =>
-    vol + ex.sets.reduce((s, set) => s + (set.weight * set.reps), 0), 0
+    vol + ex.sets.reduce((s, set) => set.isWarmup ? s : s + (set.weight * set.reps), 0), 0
   ) ?? 0;
   const duration    = formatDuration(workout.started_at, workout.finished_at);
 
@@ -168,12 +168,19 @@ function WorkoutCard({ workout }) {
               <View style={styles.exerciseRight}>
                 {ex.sets.map((s, j) => (
                   <View key={j} style={styles.setBlock}>
-                    <Text style={styles.setDetail}>
-                      {s.weight > 0 ? `${s.weight}kg` : '—'}
-                      {' × '}
-                      {s.reps > 0 ? s.reps : '—'}
-                      {s.rpe ? `  RPE ${s.rpe}` : ''}
-                    </Text>
+                    <View style={styles.setDetailRow}>
+                      {s.isWarmup && (
+                        <View style={styles.warmupBadge}>
+                          <Text style={styles.warmupBadgeText}>W</Text>
+                        </View>
+                      )}
+                      <Text style={[styles.setDetail, s.isWarmup && styles.setDetailWarmup]}>
+                        {s.weight > 0 ? `${s.weight}kg` : '—'}
+                        {' × '}
+                        {s.reps > 0 ? s.reps : '—'}
+                        {s.rpe ? `  RPE ${s.rpe}` : ''}
+                      </Text>
+                    </View>
                     {s.notes ? (
                       <Text style={styles.setNote}>{s.notes}</Text>
                     ) : null}
@@ -451,11 +458,31 @@ const styles = StyleSheet.create({
     alignItems: 'flex-end',
     marginBottom: 4,
   },
+  setDetailRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
+  },
+  warmupBadge: {
+    backgroundColor: '#FF8C00',
+    borderRadius: 4,
+    paddingHorizontal: 4,
+    paddingVertical: 1,
+  },
+  warmupBadgeText: {
+    color: '#000',
+    fontSize: 9,
+    fontWeight: '900',
+    letterSpacing: 0.3,
+  },
   setDetail: {
     fontSize: 12,
     color: '#888',
     fontWeight: '500',
     fontVariant: ['tabular-nums'],
+  },
+  setDetailWarmup: {
+    color: '#555',
   },
   setNote: {
     fontSize: 11,

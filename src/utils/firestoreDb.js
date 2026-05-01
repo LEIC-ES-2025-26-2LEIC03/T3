@@ -175,6 +175,7 @@ export async function saveWorkout(userId, workout) {
         reps:     s.reps ?? 0,
         rpe:      s.rpe ?? null,
         notes:    s.notes ?? null,
+        isWarmup: !!s.isWarmup,
       })),
     })),
   });
@@ -209,10 +210,11 @@ export async function fetchWorkouts(userId) {
         muscle:     ex.muscle,
         category:   ex.category,
         sets: (ex.sets ?? []).map(s => ({
-          weight: s.weight,
-          reps:   s.reps,
-          rpe:    s.rpe ?? null,
-          notes:  s.notes ?? null,
+          weight:   s.weight,
+          reps:     s.reps,
+          rpe:      s.rpe ?? null,
+          notes:    s.notes ?? null,
+          isWarmup: !!s.isWarmup,
         })),
       })),
     };
@@ -235,7 +237,7 @@ export function buildExercisesFromTemplate(exercises) {
     name:       def.name,
     muscle:     def.muscle,
     category:   def.category,
-    sets: [{ id: generateId(), weight: '', reps: '', rpe: null, notes: '' }],
+    sets: [{ id: generateId(), weight: '', reps: '', rpe: null, notes: '', isWarmup: false }],
   }));
 }
 
