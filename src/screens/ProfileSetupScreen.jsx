@@ -11,7 +11,7 @@ import {
   Platform,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { saveUserProfile, updateProfile } from '../services/authService';
+import { saveUserProfile, updateProfile } from '../services/profileService';
 import { auth } from '../utils/firebaseConfig';
 
 export default function ProfileSetupScreen({ navigation }) {
