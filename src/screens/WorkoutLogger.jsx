@@ -16,8 +16,6 @@ import ExerciseCard from '../components/ExerciseCard';
 import ExercisePicker from '../components/ExercisePicker';
 import { generateId } from '../utils/id';
 
-const USER_ID = 'user-001'; // TODO: replace with useAuth() when accounts land
-
 export default function WorkoutLogger({ navigation, route }) {
   const {
     preloadedExercises = [],
@@ -72,7 +70,7 @@ export default function WorkoutLogger({ navigation, route }) {
         if (hasRPE && (!hasWeight || !hasReps)) {
           Alert.alert(
             'Incomplete Set',
-            `Please enter weight and reps for all sets with an RPE in ${ex.name}.`
+            `Please enter weight and reps for all the sets in ${ex.name}.`
           );
           return;
         }
@@ -101,8 +99,14 @@ export default function WorkoutLogger({ navigation, route }) {
 
     try {
       const userId = auth.currentUser?.uid;
-      await saveWorkout(userId, workout);
-      navigation.replace('WorkoutHistory');
+
+      if (!userId) {
+        Alert.alert('Error', 'Not signed in. Please restart the app.');
+        return;
+      }
+
+      saveWorkout(userId, workout);
+      navigation.navigate('HistoryTab');
     } catch (e) {
       Alert.alert('Error', 'Could not save workout. Please try again.');
     }

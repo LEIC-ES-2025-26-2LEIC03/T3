@@ -9,9 +9,8 @@ import {
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useFocusEffect } from '@react-navigation/native';
-import { fetchWorkouts } from '../utils/db';
-
-const USER_ID = 'user-001'; // TODO: replace with useAuth() when accounts land
+import { fetchWorkouts } from '../utils/firestoreDb';
+import { auth } from '../utils/firebaseConfig';
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -197,19 +196,25 @@ export default function HistoryScreen() {
   const [loading, setLoading]     = useState(true);
   const hasLoadedOnce             = useRef(false);
 
+  const userId = auth.currentUser?.uid;
+  if (!userId) {
+    Alert.alert('Error', 'Not signed in. Please restart the app.');
+    return;
+  }
+
   useFocusEffect(
     useCallback(() => {
       // First visit shows spinner; subsequent focus events (e.g. returning
       // after finishing a workout) refresh silently so there's no flash.
       if (!hasLoadedOnce.current) setLoading(true);
 
-      fetchWorkouts(USER_ID)
+      fetchWorkouts(userId)
         .then(workouts => setSections(groupByDate(workouts)))
         .finally(() => {
           setLoading(false);
           hasLoadedOnce.current = true;
         });
-    }, [])
+    }, [userId])
   );
 
   return (
