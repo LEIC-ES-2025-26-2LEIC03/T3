@@ -30,7 +30,7 @@ jest.mock('expo-sqlite', () => ({
 
 // fetchWorkouts is what HistoryScreen calls — controlled per test.
 const mockFetchWorkouts = jest.fn();
-jest.mock('../../src/utils/db', () => ({
+jest.mock('../../src/utils/firestoreDb', () => ({
   fetchWorkouts: (...args) => mockFetchWorkouts(...args),
 }));
 

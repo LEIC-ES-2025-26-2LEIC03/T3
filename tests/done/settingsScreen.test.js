@@ -1,14 +1,26 @@
 // ─── Settings Screen Tests ────────────────────────────────────────────────
 
 import React from 'react';
-import { render, screen } from '@testing-library/react-native';
+import { render, screen, fireEvent, act } from '@testing-library/react-native';
 import SettingsScreen from '../../src/screens/SettingsScreen';
+import { Alert } from 'react-native';
+import { logout } from '../../src/services/authService';
 
 jest.mock('react-native-safe-area-context', () => ({
   useSafeAreaInsets: () => ({ top: 0, bottom: 0, left: 0, right: 0 }),
 }));
 
+jest.mock('../../src/services/authService', () => ({
+  logout: jest.fn(),
+}));
+
+jest.spyOn(Alert, 'alert');
+
 describe('SettingsScreen', () => {
+  beforeEach(() => {
+    jest.clearAllMocks();
+  });
+
   describe('Component Rendering', () => {
     test('should render the SettingsScreen component', () => {
       render(<SettingsScreen />);
@@ -21,22 +33,10 @@ describe('SettingsScreen', () => {
       expect(title).toBeDefined();
     });
 
-    test('should display the placeholder icon', () => {
+    test('should display the Log Out button', () => {
       render(<SettingsScreen />);
-      expect(screen.getByText('⚙️')).toBeDefined();
-    });
-
-    test('should display "Coming Soon" heading', () => {
-      render(<SettingsScreen />);
-      expect(screen.getByText('Coming Soon')).toBeDefined();
-    });
-
-    test('should display placeholder message', () => {
-      render(<SettingsScreen />);
-      const message = screen.getByText(
-        'App settings and preferences will appear here once this feature is implemented.'
-      );
-      expect(message).toBeDefined();
+      expect(screen.getByText('Log Out')).toBeDefined();
+      expect(screen.getByText('⏻')).toBeDefined();
     });
   });
 
@@ -47,12 +47,6 @@ describe('SettingsScreen', () => {
       expect(tree).toBeDefined();
     });
 
-    test('should have a body section centered', () => {
-      render(<SettingsScreen />);
-      expect(screen.getByText('Coming Soon')).toBeDefined();
-      expect(screen.getByText('⚙️')).toBeDefined();
-    });
-
     test('should have SafeAreaView wrapping the component', () => {
       const { toJSON } = render(<SettingsScreen />);
       const tree = toJSON();
@@ -60,73 +54,52 @@ describe('SettingsScreen', () => {
     });
   });
 
-  describe('Content Verification', () => {
-    test('should contain all required text elements', () => {
+  describe('Log Out Functionality', () => {
+    test('should show alert when Log Out is pressed', () => {
       render(<SettingsScreen />);
-      expect(screen.getByText('Settings')).toBeDefined();
-      expect(screen.getByText('Coming Soon')).toBeDefined();
-      expect(screen.getByText('⚙️')).toBeDefined();
-      expect(
-        screen.getByText('App settings and preferences will appear here once this feature is implemented.')
-      ).toBeDefined();
+      const logoutBtn = screen.getByText('Log Out');
+      fireEvent.press(logoutBtn);
+      
+      expect(Alert.alert).toHaveBeenCalledWith(
+        'Log Out',
+        'Are you sure you want to log out?',
+        expect.any(Array)
+      );
     });
 
-    test('should display text in correct order', () => {
-      const { toJSON } = render(<SettingsScreen />);
-      const tree = toJSON();
-      expect(tree).toBeDefined();
-    });
-
-    test('should render without crashing', () => {
-      expect(() => render(<SettingsScreen />)).not.toThrow();
-    });
-  });
-
-  describe('Accessibility', () => {
-    test('should have text elements accessible', () => {
+    test('should call logout service when confirmed', async () => {
       render(<SettingsScreen />);
-      const elements = screen.getAllByText(/Settings|Coming Soon|⚙️/);
-      expect(elements.length).toBeGreaterThan(0);
+      const logoutBtn = screen.getByText('Log Out');
+      fireEvent.press(logoutBtn);
+      
+      const buttons = Alert.alert.mock.calls[0][2];
+      const confirmButton = buttons.find(b => b.text === 'Log Out');
+      
+      await act(async () => {
+        await confirmButton.onPress();
+      });
+      
+      expect(logout).toHaveBeenCalled();
     });
 
-    test('should display descriptive text for users', () => {
+    test('should show error alert when logout fails', async () => {
+      logout.mockRejectedValueOnce(new Error('Logout failed'));
+      
       render(<SettingsScreen />);
-      expect(
-        screen.getByText('App settings and preferences will appear here once this feature is implemented.')
-      ).toBeDefined();
-    });
-  });
-
-  describe('Component Integration', () => {
-    test('should render as a standalone component', () => {
-      const { toJSON } = render(<SettingsScreen />);
-      expect(toJSON()).not.toBeNull();
-    });
-
-    test('should not require any props', () => {
-      expect(() => render(<SettingsScreen />)).not.toThrow();
-    });
-
-    test('should maintain component structure', () => {
-      const { toJSON } = render(<SettingsScreen />);
-      const tree = toJSON();
-      expect(tree).toBeDefined();
-      expect(tree.children).toBeDefined();
-    });
-  });
-
-  describe('UI Distinction', () => {
-    test('should have different icon from HistoryScreen', () => {
-      render(<SettingsScreen />);
-      expect(screen.getByText('⚙️')).toBeDefined();
-      expect(screen.queryByText('📋')).toBeNull();
-    });
-
-    test('should mention "preferences" in the message', () => {
-      render(<SettingsScreen />);
-      expect(
-        screen.getByText(/App settings and preferences/)
-      ).toBeDefined();
+      const logoutBtn = screen.getByText('Log Out');
+      fireEvent.press(logoutBtn);
+      
+      const buttons = Alert.alert.mock.calls[0][2];
+      const confirmButton = buttons.find(b => b.text === 'Log Out');
+      
+      await act(async () => {
+        await confirmButton.onPress();
+      });
+      
+      expect(Alert.alert).toHaveBeenCalledWith(
+        'Error',
+        'Could not log out. Please try again.'
+      );
     });
   });
 });
