@@ -7,6 +7,7 @@ import { render, screen, fireEvent, waitFor } from '@testing-library/react-nativ
 import ProfileSetupScreen from '../../src/screens/ProfileSetupScreen';
 import * as profileService from '../../src/services/profileService';
 
+
 // Mock the profileService
 jest.mock('../../src/services/profileService', () => ({
   saveUserProfile: jest.fn(),

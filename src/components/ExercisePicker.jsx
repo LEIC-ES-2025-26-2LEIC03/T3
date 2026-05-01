@@ -63,6 +63,7 @@ export default function ExercisePicker({ visible, onSelect, onClose }) {
           contentContainerStyle={styles.categoryList}
           renderItem={({ item }) => (
             <TouchableOpacity
+              testID={`category-chip-${item}`}
               style={[styles.categoryChip, activeCategory === item && styles.categoryChipActive]}
               onPress={() => setActiveCategory(item)}
             >
