@@ -1,10 +1,10 @@
 import React from 'react';
 import { render, fireEvent, waitFor } from '@testing-library/react-native';
 import TemplateBuilder from '../../src/screens/TemplateBuilder';
-import * as db from '../../src/utils/db';
+import * as db from '../../src/utils/firestoreDb';
 import { Alert } from 'react-native';
 
-jest.mock('../../src/utils/db', () => ({
+jest.mock('../../src/utils/firestoreDb', () => ({
   createTemplate: jest.fn(),
   updateTemplate: jest.fn(),
   fetchTemplates: jest.fn(),

@@ -28,7 +28,7 @@ jest.mock('expo-sqlite', () => ({
 
 // db.js is fully mocked so we can control return values without SQLite.
 // Each function is a jest.fn() whose resolved value is set per-test.
-jest.mock('../../src/utils/db', () => ({
+jest.mock('../../src/utils/firestoreDb', () => ({
   fetchWorkouts:       jest.fn(),
   saveWorkout:         jest.fn(() => Promise.resolve()),
   deleteWorkout:       jest.fn(() => Promise.resolve()),
@@ -53,7 +53,7 @@ import {
   getPendingSyncQueue,
   markSynced,
   markConflict,
-} from '../../src/utils/db';
+} from '../../src/utils/firestoreDb';
 import { syncPendingWorkouts } from '../../src/services/syncService';
 
 // ─── Helpers (inline copies — decoupled from HistoryScreen import) ────────────
