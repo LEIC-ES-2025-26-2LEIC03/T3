@@ -5,10 +5,11 @@
 import React from 'react';
 import { render, screen, fireEvent, waitFor } from '@testing-library/react-native';
 import ProfileSetupScreen from '../../src/screens/ProfileSetupScreen';
-import * as profileService from '../../src/services/profileService';
+import * as authService from '../../src/services/authService';
 
-// Mock the profileService
-jest.mock('../../src/services/profileService', () => ({
+
+// Mock the authService
+jest.mock('../../src/services/authService', () => ({
   saveUserProfile: jest.fn(),
   updateProfile: jest.fn(),
 }));
@@ -110,8 +111,8 @@ describe('ProfileSetupScreen', () => {
     });
 
     test('should convert height from imperial to metric on save', async () => {
-      profileService.updateProfile.mockResolvedValue({ success: true });
-      profileService.saveUserProfile.mockResolvedValue({ success: true });
+      authService.updateProfile.mockResolvedValue({ success: true });
+      authService.saveUserProfile.mockResolvedValue({ success: true });
 
       render(<ProfileSetupScreen navigation={mockNavigation} />);
 
@@ -128,13 +129,13 @@ describe('ProfileSetupScreen', () => {
       fireEvent.press(screen.getByText('Save Profile'));
 
       await waitFor(() => {
-        expect(profileService.saveUserProfile).toHaveBeenCalled();
+        expect(authService.saveUserProfile).toHaveBeenCalled();
       });
     });
 
     test('should convert weight from imperial to metric on save', async () => {
-      profileService.updateProfile.mockResolvedValue({ success: true });
-      profileService.saveUserProfile.mockResolvedValue({ success: true });
+      authService.updateProfile.mockResolvedValue({ success: true });
+      authService.saveUserProfile.mockResolvedValue({ success: true });
 
       render(<ProfileSetupScreen navigation={mockNavigation} />);
 
@@ -151,15 +152,15 @@ describe('ProfileSetupScreen', () => {
       fireEvent.press(screen.getByText('Save Profile'));
 
       await waitFor(() => {
-        expect(profileService.saveUserProfile).toHaveBeenCalled();
+        expect(authService.saveUserProfile).toHaveBeenCalled();
       });
     });
   });
 
   describe('Profile Save Functionality', () => {
     test('should save profile with valid data', async () => {
-      profileService.updateProfile.mockResolvedValue({ success: true });
-      profileService.saveUserProfile.mockResolvedValue({ success: true });
+      authService.updateProfile.mockResolvedValue({ success: true });
+      authService.saveUserProfile.mockResolvedValue({ success: true });
 
       render(<ProfileSetupScreen navigation={mockNavigation} />);
 
@@ -169,14 +170,14 @@ describe('ProfileSetupScreen', () => {
       fireEvent.press(screen.getByText('Save Profile'));
 
       await waitFor(() => {
-        expect(profileService.updateProfile).toHaveBeenCalled();
-        expect(profileService.saveUserProfile).toHaveBeenCalled();
+        expect(authService.updateProfile).toHaveBeenCalled();
+        expect(authService.saveUserProfile).toHaveBeenCalled();
       });
     });
 
     test('should navigate to MainTabs after successful save', async () => {
-      profileService.updateProfile.mockResolvedValue({ success: true });
-      profileService.saveUserProfile.mockResolvedValue({ success: true });
+      authService.updateProfile.mockResolvedValue({ success: true });
+      authService.saveUserProfile.mockResolvedValue({ success: true });
 
       render(<ProfileSetupScreen navigation={mockNavigation} />);
 
@@ -189,8 +190,8 @@ describe('ProfileSetupScreen', () => {
 
     test('should display error message when profile save fails', async () => {
       const errorMsg = 'Failed to save profile';
-      profileService.updateProfile.mockResolvedValue({ success: true });
-      profileService.saveUserProfile.mockResolvedValue({
+      authService.updateProfile.mockResolvedValue({ success: true });
+      authService.saveUserProfile.mockResolvedValue({
         success: false,
         error: errorMsg,
       });
@@ -206,7 +207,7 @@ describe('ProfileSetupScreen', () => {
 
     test('should display error message when unit preference update fails', async () => {
       const errorMsg = 'Failed to update units';
-      profileService.updateProfile.mockResolvedValue({
+      authService.updateProfile.mockResolvedValue({
         success: false,
         error: errorMsg,
       });
@@ -221,15 +222,15 @@ describe('ProfileSetupScreen', () => {
     });
 
     test('should handle null values for optional fields', async () => {
-      profileService.updateProfile.mockResolvedValue({ success: true });
-      profileService.saveUserProfile.mockResolvedValue({ success: true });
+      authService.updateProfile.mockResolvedValue({ success: true });
+      authService.saveUserProfile.mockResolvedValue({ success: true });
 
       render(<ProfileSetupScreen navigation={mockNavigation} />);
 
       fireEvent.press(screen.getByText('Save Profile'));
 
       await waitFor(() => {
-        const callArgs = profileService.saveUserProfile.mock.calls[0];
+        const callArgs = authService.saveUserProfile.mock.calls[0];
         expect(callArgs[1].bodyFatPercentage).toBeNull();
       });
     });

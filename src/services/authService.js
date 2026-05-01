@@ -5,6 +5,8 @@ import {
 } from 'firebase/auth';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { auth } from '../utils/firebaseConfig';
+import * as firestoreDb from '../utils/firestoreDb';
+
 
 const STAY_LOGGED_IN_KEY = '@stayLoggedIn';
 
@@ -57,7 +59,55 @@ export async function logout() {
   await signOut(auth);
 }
 
+
+// ─── Profile operations ───────────────────────────────────────────────────────
+
+/**
+ * Retrieve the profile for a given user from Firestore.
+ */
+export async function getProfile(userId) {
+  return firestoreDb.getProfile(userId);
+}
+
+/**
+ * Update profile fields (units, displayName).
+ */
+export async function updateProfile(userId, updates) {
+  try {
+    // Validation
+    if (updates.displayName && updates.displayName.trim().length > 30) {
+      return { success: false, error: 'Name is too long — max 30 characters.' };
+    }
+
+    await firestoreDb.upsertProfile(userId, updates);
+    return { success: true };
+  } catch (e) {
+    return { success: false, error: 'Could not update profile.' };
+  }
+}
+
+/**
+ * Save full profile details (height, weight, etc).
+ */
+export async function saveUserProfile(userId, profileData) {
+  try {
+    // Basic validation
+    if (profileData.heightCm < 50 || profileData.heightCm > 300) {
+      return { success: false, error: 'Invalid height.' };
+    }
+    if (profileData.weightKg < 1 || profileData.weightKg > 500) {
+      return { success: false, error: 'Invalid weight.' };
+    }
+
+    await firestoreDb.upsertProfile(userId, profileData);
+    return { success: true };
+  } catch (e) {
+    return { success: false, error: 'Could not save profile.' };
+  }
+}
+
 // ─── Friendly error messages ──────────────────────────────────────────────────
+
 
 function firebaseErrorMessage(code) {
   switch (code) {

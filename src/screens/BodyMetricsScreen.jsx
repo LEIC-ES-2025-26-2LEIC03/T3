@@ -11,7 +11,7 @@ import {
   Platform,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { getProfile, saveUserProfile, updateProfile } from '../services/profileService';
+import { getProfile, saveUserProfile, updateProfile } from '../services/authService';
 import { auth } from '../utils/firebaseConfig';
 
 export default function BodyMetricsScreen({ navigation }) {
