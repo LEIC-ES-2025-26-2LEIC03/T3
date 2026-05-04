@@ -9,24 +9,24 @@ import {
   StyleSheet,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { EXERCISES, CATEGORIES } from '../data/exercises';
+import { EXERCISES, MUSCLES } from '../data/exercises';
 
 export default function ExercisePicker({ visible, onSelect, onClose }) {
   const [search, setSearch] = useState('');
-  const [activeCategory, setActiveCategory] = useState('All');
+  const [activeMuscle, setActiveMuscle] = useState('All');
 
   const filtered = EXERCISES.filter(ex => {
     const matchesSearch = ex.name.toLowerCase().includes(search.toLowerCase());
-    const matchesCategory = activeCategory === 'All' || ex.category === activeCategory;
-    return matchesSearch && matchesCategory;
+    const matchesMuscle = activeMuscle === 'All' || ex.muscle.includes(activeMuscle);
+    return matchesSearch && matchesMuscle;
   });
 
-  const categories = ['All', ...CATEGORIES];
+  const filterOptions = ['All', ...MUSCLES];
 
   const handleSelect = (exercise) => {
     onSelect(exercise);
     setSearch('');
-    setActiveCategory('All');
+    setActiveMuscle('All');
   };
 
   return (
@@ -53,21 +53,21 @@ export default function ExercisePicker({ visible, onSelect, onClose }) {
           />
         </View>
 
-        {/* Category filter */}
+        {/* Muscle filter */}
         <FlatList
           horizontal
           showsHorizontalScrollIndicator={false}
-          data={categories}
+          data={filterOptions}
           keyExtractor={item => item}
           style={styles.categoryListContainer}
           contentContainerStyle={styles.categoryList}
           renderItem={({ item }) => (
             <TouchableOpacity
               testID={`category-chip-${item}`}
-              style={[styles.categoryChip, activeCategory === item && styles.categoryChipActive]}
-              onPress={() => setActiveCategory(item)}
+              style={[styles.categoryChip, activeMuscle === item && styles.categoryChipActive]}
+              onPress={() => setActiveMuscle(item)}
             >
-              <Text style={[styles.categoryText, activeCategory === item && styles.categoryTextActive]}>
+              <Text style={[styles.categoryText, activeMuscle === item && styles.categoryTextActive]}>
                 {item}
               </Text>
             </TouchableOpacity>
@@ -84,7 +84,7 @@ export default function ExercisePicker({ visible, onSelect, onClose }) {
             <TouchableOpacity style={styles.exerciseRow} onPress={() => handleSelect(item)}>
               <View style={styles.exerciseInfo}>
                 <Text style={styles.exerciseName}>{item.name}</Text>
-                <Text style={styles.exerciseMeta}>{item.category} · {item.muscle}</Text>
+                <Text style={styles.exerciseMeta}>{item.muscle}</Text>
               </View>
               <Text style={styles.addIcon}>＋</Text>
             </TouchableOpacity>
