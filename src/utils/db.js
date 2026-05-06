@@ -233,41 +233,11 @@ async function migrate(db) {
     await db.runAsync(`INSERT OR REPLACE INTO _migrations (version) VALUES (2)`);
   }
 
-  // ── Sync static catalogue ───────────────────────────────────────────────
-  if (currentVersion < 5) {
-    await db.withTransactionAsync(async () => {
-      for (const ex of EXERCISES) {
-        await db.runAsync(
-          `INSERT INTO exercises (id, name, category, muscle)
-           VALUES (?, ?, ?, ?)
-           ON CONFLICT(id) DO UPDATE SET
-             name = excluded.name,
-             category = excluded.category,
-             muscle = excluded.muscle`,
-          [ex.id, ex.name, ex.category, ex.muscle]
-        );
-      }
-    });
-    await db.runAsync(`INSERT OR REPLACE INTO _migrations (version) VALUES (5)`);
-  }
-
-  // ── Update exercise names & additions ───────────────────────────────────
-  if (currentVersion < 6) {
-    await db.withTransactionAsync(async () => {
-      for (const ex of EXERCISES) {
-        await db.runAsync(
-          `INSERT INTO exercises (id, name, category, muscle)
-           VALUES (?, ?, ?, ?)
-           ON CONFLICT(id) DO UPDATE SET
-             name = excluded.name,
-             category = excluded.category,
-             muscle = excluded.muscle`,
-          [ex.id, ex.name, ex.category, ex.muscle]
-        );
-      }
-    });
-    await db.runAsync(`INSERT OR REPLACE INTO _migrations (version) VALUES (6)`);
-  }
+  // ── Template for future migrations ──────────────────────────────────────────
+  // if (currentVersion < 3) {
+  //   await db.execAsync(`ALTER TABLE workouts ADD COLUMN rating INTEGER`);
+  //   await db.runAsync(`INSERT INTO _migrations (version) VALUES (3)`);
+  // }
 }
 
 // ─── Internal helpers ─────────────────────────────────────────────────────────
@@ -541,13 +511,13 @@ export async function saveWorkout(userId, workout) {
         const s = ex.sets[j];
         await db.runAsync(
           `INSERT INTO workout_sets
-             (id, workout_exercise_id, weight, reps, rpe, notes, position)
-           VALUES (?, ?, ?, ?, ?, ?, ?)`,
-          [
-            generateId(), wexId,
+             (id, workout_exercise_id, weight, reps, rpe, notes, is_warmup, position)
+           VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+          [generateId(), wexId,
             s.weight, s.reps,
-            s.rpe   ?? null,
-            s.notes ?? null,
+            s.rpe    ?? null,
+            s.notes  ?? null,
+            s.isWarmup ? 1 : 0,
             j,
           ]
         );
@@ -590,6 +560,7 @@ export async function fetchWorkouts(userId) {
        ws.reps,
        ws.rpe,
        ws.notes       AS set_notes,
+       ws.is_warmup   AS set_is_warmup,
        ws.position    AS set_position
      FROM workout_exercises we
      LEFT JOIN workout_sets ws ON ws.workout_exercise_id = we.id
@@ -620,11 +591,12 @@ export async function fetchWorkouts(userId) {
  
     if (row.set_id) {
       exMap.get(row.wex_id).sets.push({
-        id:     row.set_id,
-        weight: row.weight,
-        reps:   row.reps,
-        rpe:    row.rpe,
-        notes:  row.set_notes,
+        id:       row.set_id,
+        weight:   row.weight,
+        reps:     row.reps,
+        rpe:      row.rpe,
+        notes:    row.set_notes,
+        isWarmup: !!row.set_is_warmup,
       });
     }
   }
@@ -805,6 +777,6 @@ export function buildExercisesFromTemplate(exercises) {
     name:       def.name,
     muscle:     def.muscle,
     category:   def.category,
-    sets: [{ id: generateId(), weight: '', reps: '', rpe: null, notes: '' }],
+    sets: [{ id: generateId(), weight: '', reps: '', rpe: null, notes: '', isWarmup: false }],
   }));
 }
