@@ -162,7 +162,7 @@ export default function ExerciseHistoryScreen({ navigation, route }) {
       {/* ── Top bar ── */}
       <View style={styles.topBar}>
         <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backBtn}>
-          <Text style={styles.backArrow}>‹</Text>
+          <Text style={styles.backText}>Back</Text>
         </TouchableOpacity>
       </View>
 
@@ -229,14 +229,16 @@ const styles = StyleSheet.create({
   },
   backBtn: {
     alignSelf: 'flex-start',
-    paddingVertical: 4,
-    paddingRight: 12,
+    backgroundColor: '#1E1E1E',
+    paddingHorizontal: 16,
+    paddingVertical: 9,
+    borderRadius: 12,
   },
-  backArrow: {
-    fontSize: 28,
-    color: '#C8FF00',
-    fontWeight: '300',
-    marginTop: -2,
+  backText: {
+    color: '#FFFFFF',
+    fontSize: 13,
+    fontWeight: '800',
+    letterSpacing: 0.5,
   },
 
   // Exercise header
