@@ -37,7 +37,7 @@ export default function WorkoutLogger({ navigation, route }) {
       name: exerciseDef.name,
       muscle: exerciseDef.muscle,
       category: exerciseDef.category,
-      sets: [{ id: generateId(), weight: '', reps: '', rpe: null, notes: '' }],
+      sets: [{ id: generateId(), weight: '', reps: '', rpe: null, notes: '', isWarmup: false }],
     };
     setExercises(prev => [...prev, newExercise]);
     setPickerVisible(false);
@@ -89,10 +89,11 @@ export default function WorkoutLogger({ navigation, route }) {
         muscle:     ex.muscle,
         category:   ex.category,
         sets: ex.sets.map(s => ({
-          weight: parseFloat(s.weight) || 0,
-          reps:   parseInt(s.reps, 10) || 0,
-          rpe:    s.rpe   || null,
-          notes:  s.notes || '',
+          weight:   parseFloat(s.weight) || 0,
+          reps:     parseInt(s.reps, 10) || 0,
+          rpe:      s.rpe   || null,
+          notes:    s.notes || '',
+          isWarmup: !!s.isWarmup,
         })),
       })),
     };
@@ -112,7 +113,10 @@ export default function WorkoutLogger({ navigation, route }) {
     }
   };
 
-  const totalSets = exercises.reduce((acc, ex) => acc + ex.sets.length, 0);
+  const totalSets        = exercises.reduce((acc, ex) => acc + ex.sets.length, 0);
+  const workingSetsCount = exercises.reduce(
+    (acc, ex) => acc + ex.sets.filter(s => !s.isWarmup).length, 0
+  );
 
   return (
     <SafeAreaView style={styles.safe}>
@@ -130,7 +134,8 @@ export default function WorkoutLogger({ navigation, route }) {
             <Text style={styles.workoutTitle}>{workoutName}</Text>
             <Text style={styles.workoutMeta}>
               {exercises.length} exercise{exercises.length !== 1 ? 's' : ''}
-              {totalSets > 0 ? `  ·  ${totalSets} sets` : ''}
+              {workingSetsCount > 0 ? `  ·  ${workingSetsCount} working` : ''}
+              {totalSets - workingSetsCount > 0 ? `  +  ${totalSets - workingSetsCount}W` : ''}
             </Text>
           </View>
           <TouchableOpacity style={styles.finishBtn} onPress={handleFinishWorkout}>

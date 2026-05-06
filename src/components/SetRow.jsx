@@ -2,15 +2,22 @@ import React, { useState } from 'react';
 import { View, Text, TextInput, TouchableOpacity, StyleSheet, Modal } from 'react-native';
 
 export default function SetRow({ set, setNumber, onChange, onDelete }) {
+  const isWarmup = !!set.isWarmup;
   const [rpeModalVisible, setRpeModalVisible] = useState(false);
 
   return (
-    <View style={styles.setContainer}>
-      {/* TOP ROW: Set #, Weight, Reps, RPE and Delete */}
+    <View style={[styles.setContainer, isWarmup && styles.setContainerWarmup]}>
+      {/* TOP ROW: Set #, Warmup toggle, Weight, Reps, RPE and Delete */}
       <View style={styles.mainRow}>
-        <View style={styles.setBadge}>
-          <Text style={styles.setNumber}>{setNumber}</Text>
-        </View>
+        <TouchableOpacity
+          style={[styles.setBadge, isWarmup && styles.setBadgeWarmup]}
+          onPress={() => onChange({ ...set, isWarmup: !isWarmup })}
+          accessibilityLabel={isWarmup ? 'Mark as working set' : 'Mark as warm-up set'}
+        >
+          <Text style={[styles.setNumber, isWarmup && styles.setNumberWarmup]}>
+            {isWarmup ? 'W' : setNumber}
+          </Text>
+        </TouchableOpacity>
 
         <View style={styles.inputGroup}>
           <TextInput
@@ -118,6 +125,10 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: '#222',
   },
+  setContainerWarmup: {
+    backgroundColor: '#181008',
+    borderColor: '#FF8C00',
+  },
   mainRow: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -137,10 +148,18 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
+  setBadgeWarmup: {
+    backgroundColor: '#FF8C00',
+  },
   setNumber: {
     color: '#999',
     fontSize: 11,
     fontWeight: 'bold',
+  },
+  setNumberWarmup: {
+    color: '#000',
+    fontSize: 10,
+    fontWeight: '900',
   },
   inputGroup: {
     flex: 1,

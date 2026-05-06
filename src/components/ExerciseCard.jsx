@@ -10,6 +10,7 @@ export default function ExerciseCard({ exercise, onUpdate, onRemove }) {
       id: generateId(),
       weight: lastSet?.weight ?? '',
       reps: lastSet?.reps ?? '',
+      isWarmup: false,
     };
     onUpdate({ ...exercise, sets: [...exercise.sets, newSet] });
   };
