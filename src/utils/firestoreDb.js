@@ -226,6 +226,38 @@ export async function deleteWorkout(userId, id) {
   });
 }
 
+// ─── Exercise history ─────────────────────────────────────────────────────────
+
+/**
+ * Fetch the workout history for a single exercise.
+ * Returns an array of { workoutId, workoutName, date, sets[] } sorted newest-first.
+ */
+export async function fetchExerciseHistory(userId, exerciseId) {
+  const workouts = await fetchWorkouts(userId);
+
+  const history = [];
+
+  for (const w of workouts) {
+    const matchingExercises = (w.exercises ?? []).filter(
+      ex => ex.exerciseId === exerciseId
+    );
+
+    for (const ex of matchingExercises) {
+      history.push({
+        workoutId:   w.id,
+        workoutName: w.name,
+        date:        w.finished_at ?? w.started_at,
+        sets:        ex.sets ?? [],
+      });
+    }
+  }
+
+  // Already sorted newest-first from fetchWorkouts, but ensure it
+  history.sort((a, b) => new Date(b.date) - new Date(a.date));
+
+  return history;
+}
+
 // ─── Shared utility ───────────────────────────────────────────────────────────
 
 export function buildExercisesFromTemplate(exercises) {

@@ -1,10 +1,12 @@
 import React, { useState } from 'react';
 import { View, Text, TextInput, TouchableOpacity, FlatList, StyleSheet } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { useNavigation } from '@react-navigation/native';
 import { EXERCISES, MUSCLES } from '../data/exercises';
 
 export default function LibraryScreen() {
   const insets = useSafeAreaInsets();
+  const navigation = useNavigation();
   const [search, setSearch] = useState('');
   const [activeMuscle, setActiveMuscle] = useState('All');
 
@@ -58,12 +60,17 @@ export default function LibraryScreen() {
         style={styles.exerciseList}
         contentContainerStyle={styles.exerciseListContent}
         renderItem={({ item }) => (
-          <View style={styles.exerciseRow}>
+          <TouchableOpacity
+            style={styles.exerciseRow}
+            activeOpacity={0.7}
+            onPress={() => navigation.navigate('ExerciseHistory', { exercise: item })}
+          >
             <View style={styles.exerciseInfo}>
               <Text style={styles.exerciseName}>{item.name}</Text>
               <Text style={styles.exerciseMeta}>{item.muscle}</Text>
             </View>
-          </View>
+            <Text style={styles.chevron}>›</Text>
+          </TouchableOpacity>
         )}
         ListEmptyComponent={
           <View style={styles.emptyState}>
@@ -171,6 +178,12 @@ const styles = StyleSheet.create({
     fontSize: 12,
     color: '#666',
     letterSpacing: 0.3,
+  },
+  chevron: {
+    fontSize: 20,
+    color: '#444',
+    fontWeight: '300',
+    marginLeft: 8,
   },
   emptyState: {
     paddingTop: 48,
