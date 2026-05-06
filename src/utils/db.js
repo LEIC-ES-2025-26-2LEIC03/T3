@@ -250,6 +250,24 @@ async function migrate(db) {
     });
     await db.runAsync(`INSERT OR REPLACE INTO _migrations (version) VALUES (5)`);
   }
+
+  // ── Update exercise names & additions ───────────────────────────────────
+  if (currentVersion < 6) {
+    await db.withTransactionAsync(async () => {
+      for (const ex of EXERCISES) {
+        await db.runAsync(
+          `INSERT INTO exercises (id, name, category, muscle)
+           VALUES (?, ?, ?, ?)
+           ON CONFLICT(id) DO UPDATE SET
+             name = excluded.name,
+             category = excluded.category,
+             muscle = excluded.muscle`,
+          [ex.id, ex.name, ex.category, ex.muscle]
+        );
+      }
+    });
+    await db.runAsync(`INSERT OR REPLACE INTO _migrations (version) VALUES (6)`);
+  }
 }
 
 // ─── Internal helpers ─────────────────────────────────────────────────────────
