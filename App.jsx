@@ -15,7 +15,7 @@ import TabNavigator from './src/navigation/TabNavigator';
 
 import { auth } from './src/utils/firebaseConfig';
 import { getStayLoggedIn, logout } from './src/services/authService';
-import { getProfile } from './src/utils/firestoreDb';
+import { getProfile, upsertProfile } from './src/utils/firestoreDb';
 
 const Root = createStackNavigator();
 
@@ -42,6 +42,10 @@ export default function AppNavigator() {
             return;
           }
         }
+
+        // Ensure the user document exists in Firestore so subcollections
+        // (favourites, etc.) can be written to without silently failing
+        await upsertProfile(firebaseUser.uid, {});
 
         // Check if the user already completed their profile
         try {

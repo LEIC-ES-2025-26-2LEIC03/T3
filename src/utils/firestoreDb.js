@@ -5,6 +5,7 @@ import {
   getDocs,
   setDoc,
   updateDoc,
+  deleteDoc,
   query,
   where,
   orderBy,
@@ -23,6 +24,8 @@ const templateCol = (userId)             => collection(db, 'users', userId, 'tem
 const templateDoc = (userId, templateId) => doc(db, 'users', userId, 'templates', templateId);
 const workoutCol  = (userId)             => collection(db, 'users', userId, 'workouts');
 const workoutDoc  = (userId, workoutId)  => doc(db, 'users', userId, 'workouts', workoutId);
+const favouriteCol  = (userId)             => collection(db, 'users', userId, 'favourites');
+const favouriteDoc  = (userId, exerciseId) => doc(db, 'users', userId, 'favourites', exerciseId);
 
 // ─── User profile ─────────────────────────────────────────────────────────────
 
@@ -49,6 +52,42 @@ export async function upsertProfile(userId, fields) {
     fitnessGoals:      fields.fitnessGoals ?? null,
     updatedAt:         serverTimestamp(),
   }, { merge: true });
+}
+
+// ─── Favourites ───────────────────────────────────────────────────────────────
+ 
+/**
+ * Fetch the set of exercise IDs the user has favourited.
+ * Returns a Set<string> for O(1) membership checks in the picker UI.
+ */
+export async function fetchFavourites(userId) {
+  const snap = await getDocs(favouriteCol(userId));
+  const ids = new Set();
+  snap.forEach(d => ids.add(d.id));
+  return ids;
+}
+ 
+/**
+ * Toggle a favourite on or off.
+ * Returns true if the exercise is now favourited, false if it was removed.
+ */
+export async function toggleFavourite(userId, exercise) {
+  const ref = favouriteDoc(userId, exercise.id);
+  const snap = await getDoc(ref);
+ 
+  if (snap.exists()) {
+    await deleteDoc(ref);
+    return false;
+  } else {
+    await setDoc(ref, {
+      exerciseId: exercise.id,
+      name:       exercise.name,
+      muscle:     exercise.muscle,
+      category:   exercise.category,
+      createdAt:  serverTimestamp(),
+    });
+    return true;
+  }
 }
 
 // ─── Templates ────────────────────────────────────────────────────────────────
