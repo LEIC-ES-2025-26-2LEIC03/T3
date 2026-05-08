@@ -1,14 +1,60 @@
-import React, { useState } from 'react';
-import { View, Text, TextInput, TouchableOpacity, FlatList, StyleSheet } from 'react-native';
+import React, { useState, useCallback } from 'react';
+import {
+  View,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  FlatList,
+  StyleSheet,
+  Modal,
+  ActivityIndicator,
+  Alert,
+  ScrollView,
+  KeyboardAvoidingView,
+  Platform,
+} from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { useFocusEffect } from '@react-navigation/native';
 import { EXERCISES, MUSCLES } from '../data/exercises';
+import {
+  fetchCustomExercises,
+  createCustomExercise,
+  deleteCustomExercise,
+} from '../utils/firestoreDb';
+import { auth } from '../utils/firebaseConfig';
+import { generateId } from '../utils/id';
 
 export default function LibraryScreen() {
   const insets = useSafeAreaInsets();
+  const userId = auth.currentUser?.uid;
+
   const [search, setSearch] = useState('');
   const [activeMuscle, setActiveMuscle] = useState('All');
+  const [customExercises, setCustomExercises] = useState([]);
+  const [loadingCustom, setLoadingCustom] = useState(true);
 
-  const filtered = EXERCISES.filter(ex => {
+  // ── Create modal state ───────────────────────────────────────────────────
+  const [modalVisible, setModalVisible] = useState(false);
+  const [newName, setNewName] = useState('');
+  const [selectedMuscles, setSelectedMuscles] = useState([]);
+  const [saving, setSaving] = useState(false);
+
+  // ── Load custom exercises when screen is focused ─────────────────────────
+  useFocusEffect(
+    useCallback(() => {
+      if (!userId) { setLoadingCustom(false); return; }
+      setLoadingCustom(true);
+      fetchCustomExercises(userId)
+        .then(setCustomExercises)
+        .catch(() => setCustomExercises([]))
+        .finally(() => setLoadingCustom(false));
+    }, [userId])
+  );
+
+  // ── Merged + filtered list ───────────────────────────────────────────────
+  const allExercises = [...EXERCISES, ...customExercises];
+
+  const filtered = allExercises.filter(ex => {
     const matchesSearch = ex.name.toLowerCase().includes(search.toLowerCase());
     const matchesMuscle = activeMuscle === 'All' || ex.muscle.includes(activeMuscle);
     return matchesSearch && matchesMuscle;
@@ -16,12 +62,96 @@ export default function LibraryScreen() {
 
   const filterOptions = ['All', ...MUSCLES];
 
+  // ── Muscle toggle for the create form ───────────────────────────────────
+  const toggleMuscle = (muscle) => {
+    setSelectedMuscles(prev =>
+      prev.includes(muscle) ? prev.filter(m => m !== muscle) : [...prev, muscle]
+    );
+  };
+
+  // ── Save custom exercise ─────────────────────────────────────────────────
+  const handleCreate = async () => {
+    const trimmedName = newName.trim();
+    if (!trimmedName) {
+      Alert.alert('Missing name', 'Please enter an exercise name.');
+      return;
+    }
+    if (selectedMuscles.length === 0) {
+      Alert.alert('Missing muscle', 'Please select at least one muscle group.');
+      return;
+    }
+    // Prevent duplicates (case-insensitive)
+    const nameLower = trimmedName.toLowerCase();
+    const exists = allExercises.some(ex => ex.name.toLowerCase() === nameLower);
+    if (exists) {
+      Alert.alert('Already exists', 'An exercise with that name already exists in the library.');
+      return;
+    }
+
+    setSaving(true);
+    try {
+      const id = generateId();
+      const muscleString = selectedMuscles.join(', ');
+      await createCustomExercise(userId, id, trimmedName, muscleString);
+      const newEx = {
+        id,
+        name: trimmedName,
+        category: selectedMuscles[0],
+        muscle: muscleString,
+        isCustom: true,
+      };
+      setCustomExercises(prev => [...prev, newEx]);
+      setModalVisible(false);
+      setNewName('');
+      setSelectedMuscles([]);
+    } catch (e) {
+      Alert.alert('Error', 'Failed to save exercise. Please try again.');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handleCloseModal = () => {
+    setModalVisible(false);
+    setNewName('');
+    setSelectedMuscles([]);
+  };
+
+  // ── Delete custom exercise ───────────────────────────────────────────────
+  const handleDeleteCustom = (ex) => {
+    Alert.alert(
+      'Delete Exercise',
+      `Remove "${ex.name}" from your library? This can't be undone.`,
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Delete',
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              await deleteCustomExercise(userId, ex.id);
+              setCustomExercises(prev => prev.filter(e => e.id !== ex.id));
+            } catch {
+              Alert.alert('Error', 'Failed to delete exercise.');
+            }
+          },
+        },
+      ]
+    );
+  };
+
+  // ── Render ───────────────────────────────────────────────────────────────
   return (
     <View style={[styles.safe, { paddingTop: insets.top }]}>
+      {/* Top bar */}
       <View style={styles.topBar}>
         <Text style={styles.title}>Library</Text>
+        <TouchableOpacity style={styles.addBtn} onPress={() => setModalVisible(true)}>
+          <Text style={styles.addBtnText}>＋ New</Text>
+        </TouchableOpacity>
       </View>
 
+      {/* Search */}
       <View style={styles.searchContainer}>
         <Text style={styles.searchIcon}>🔍</Text>
         <TextInput
@@ -31,8 +161,14 @@ export default function LibraryScreen() {
           value={search}
           onChangeText={setSearch}
         />
+        {search.length > 0 && (
+          <TouchableOpacity onPress={() => setSearch('')}>
+            <Text style={styles.clearBtn}>✕</Text>
+          </TouchableOpacity>
+        )}
       </View>
 
+      {/* Muscle filter chips */}
       <FlatList
         horizontal
         showsHorizontalScrollIndicator={false}
@@ -52,25 +188,122 @@ export default function LibraryScreen() {
         )}
       />
 
-      <FlatList
-        data={filtered}
-        keyExtractor={item => item.id}
-        style={styles.exerciseList}
-        contentContainerStyle={styles.exerciseListContent}
-        renderItem={({ item }) => (
-          <View style={styles.exerciseRow}>
-            <View style={styles.exerciseInfo}>
-              <Text style={styles.exerciseName}>{item.name}</Text>
-              <Text style={styles.exerciseMeta}>{item.muscle}</Text>
+      {/* Exercise list */}
+      {loadingCustom ? (
+        <ActivityIndicator color="#C8FF00" style={{ marginTop: 32 }} />
+      ) : (
+        <FlatList
+          data={filtered}
+          keyExtractor={item => item.id}
+          style={styles.exerciseList}
+          contentContainerStyle={styles.exerciseListContent}
+          renderItem={({ item }) => (
+            <View style={styles.exerciseRow}>
+              <View style={styles.exerciseInfo}>
+                <View style={styles.nameRow}>
+                  <Text style={styles.exerciseName}>{item.name}</Text>
+                  {item.isCustom && (
+                    <View style={styles.customBadge}>
+                      <Text style={styles.customBadgeText}>Custom</Text>
+                    </View>
+                  )}
+                </View>
+                <Text style={styles.exerciseMeta}>{item.muscle}</Text>
+              </View>
+              {item.isCustom && (
+                <TouchableOpacity
+                  style={styles.deleteBtn}
+                  onPress={() => handleDeleteCustom(item)}
+                  hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                >
+                  <Text style={styles.deleteBtnText}>🗑</Text>
+                </TouchableOpacity>
+              )}
             </View>
+          )}
+          ListEmptyComponent={
+            <View style={styles.emptyState}>
+              <Text style={styles.emptyText}>No exercises found</Text>
+            </View>
+          }
+        />
+      )}
+
+      {/* ── Create Exercise Modal ────────────────────────────────────────── */}
+      <Modal
+        visible={modalVisible}
+        animationType="slide"
+        presentationStyle="pageSheet"
+        onRequestClose={handleCloseModal}
+      >
+        <KeyboardAvoidingView
+          style={styles.modalWrapper}
+          behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        >
+          {/* Modal header */}
+          <View style={styles.modalHeader}>
+            <TouchableOpacity onPress={handleCloseModal} style={styles.modalCancelBtn}>
+              <Text style={styles.modalCancelText}>Cancel</Text>
+            </TouchableOpacity>
+            <Text style={styles.modalTitle}>New Exercise</Text>
+            <TouchableOpacity
+              onPress={handleCreate}
+              style={[styles.modalSaveBtn, saving && styles.modalSaveBtnDisabled]}
+              disabled={saving}
+            >
+              {saving
+                ? <ActivityIndicator size="small" color="#0F0F0F" />
+                : <Text style={styles.modalSaveText}>Save</Text>
+              }
+            </TouchableOpacity>
           </View>
-        )}
-        ListEmptyComponent={
-          <View style={styles.emptyState}>
-            <Text style={styles.emptyText}>No exercises found</Text>
-          </View>
-        }
-      />
+
+          <ScrollView style={styles.modalBody} keyboardShouldPersistTaps="handled">
+            {/* Name field */}
+            <Text style={styles.fieldLabel}>Exercise Name</Text>
+            <TextInput
+              style={styles.nameInput}
+              placeholder="e.g. Cable lateral raise"
+              placeholderTextColor="#555"
+              value={newName}
+              onChangeText={setNewName}
+              autoFocus
+              returnKeyType="done"
+            />
+
+            {/* Muscle group selector */}
+            <Text style={styles.fieldLabel}>Muscle Group(s)</Text>
+            <Text style={styles.fieldHint}>Select one or more</Text>
+            <View style={styles.muscleGrid}>
+              {MUSCLES.map(muscle => {
+                const active = selectedMuscles.includes(muscle);
+                return (
+                  <TouchableOpacity
+                    key={muscle}
+                    style={[styles.muscleChip, active && styles.muscleChipActive]}
+                    onPress={() => toggleMuscle(muscle)}
+                  >
+                    <Text style={[styles.muscleChipText, active && styles.muscleChipTextActive]}>
+                      {muscle}
+                    </Text>
+                  </TouchableOpacity>
+                );
+              })}
+            </View>
+
+            {/* Preview */}
+            {newName.trim().length > 0 && selectedMuscles.length > 0 && (
+              <View style={styles.previewCard}>
+                <Text style={styles.previewLabel}>Preview</Text>
+                <Text style={styles.previewName}>{newName.trim()}</Text>
+                <Text style={styles.previewMuscle}>{selectedMuscles.join(', ')}</Text>
+              </View>
+            )}
+
+            <View style={{ height: 60 }} />
+          </ScrollView>
+        </KeyboardAvoidingView>
+      </Modal>
     </View>
   );
 }
@@ -80,7 +313,12 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: '#0A0A0A',
   },
+
+  // ── Top bar ──────────────────────────────────────────────────────────────
   topBar: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
     paddingHorizontal: 20,
     paddingVertical: 14,
     borderBottomWidth: 1,
@@ -92,6 +330,19 @@ const styles = StyleSheet.create({
     color: '#FFFFFF',
     letterSpacing: 0.2,
   },
+  addBtn: {
+    backgroundColor: '#C8FF00',
+    paddingHorizontal: 14,
+    paddingVertical: 7,
+    borderRadius: 20,
+  },
+  addBtnText: {
+    color: '#0A0A0A',
+    fontSize: 13,
+    fontWeight: '700',
+  },
+
+  // ── Search ───────────────────────────────────────────────────────────────
   searchContainer: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -102,25 +353,18 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: '#2A2A2A',
   },
-  searchIcon: {
-    fontSize: 16,
-    marginRight: 8,
-  },
+  searchIcon: { fontSize: 16, marginRight: 8 },
   searchInput: {
     flex: 1,
     height: 44,
     color: '#FFFFFF',
     fontSize: 15,
   },
-  filterListContainer: {
-    flexGrow: 0,
-    marginBottom: 8,
-  },
-  filterList: {
-    paddingHorizontal: 16,
-    paddingBottom: 4,
-    gap: 8,
-  },
+  clearBtn: { color: '#555', fontSize: 14, paddingLeft: 8 },
+
+  // ── Filters ──────────────────────────────────────────────────────────────
+  filterListContainer: { flexGrow: 0, marginBottom: 8 },
+  filterList: { paddingHorizontal: 16, paddingBottom: 4, gap: 8 },
   filterChip: {
     paddingHorizontal: 16,
     paddingVertical: 7,
@@ -130,26 +374,13 @@ const styles = StyleSheet.create({
     borderColor: '#2A2A2A',
     marginRight: 8,
   },
-  filterChipActive: {
-    backgroundColor: '#C8FF00',
-    borderColor: '#C8FF00',
-  },
-  filterText: {
-    color: '#888',
-    fontSize: 13,
-    fontWeight: '600',
-  },
-  filterTextActive: {
-    color: '#0F0F0F',
-  },
-  exerciseList: {
-    flex: 1,
-  },
-  exerciseListContent: {
-    paddingHorizontal: 16,
-    paddingTop: 4,
-    paddingBottom: 16,
-  },
+  filterChipActive: { backgroundColor: '#C8FF00', borderColor: '#C8FF00' },
+  filterText: { color: '#888', fontSize: 13, fontWeight: '600' },
+  filterTextActive: { color: '#0F0F0F' },
+
+  // ── Exercise list ─────────────────────────────────────────────────────────
+  exerciseList: { flex: 1 },
+  exerciseListContent: { paddingHorizontal: 16, paddingTop: 4, paddingBottom: 16 },
   exerciseRow: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -158,26 +389,109 @@ const styles = StyleSheet.create({
     borderBottomWidth: 1,
     borderBottomColor: '#1A1A1A',
   },
-  exerciseInfo: {
-    flex: 1,
+  exerciseInfo: { flex: 1 },
+  nameRow: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 2 },
+  exerciseName: { fontSize: 15, fontWeight: '600', color: '#FFFFFF' },
+  customBadge: {
+    backgroundColor: '#1E2E00',
+    borderRadius: 6,
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderWidth: 1,
+    borderColor: '#C8FF0033',
   },
-  exerciseName: {
-    fontSize: 15,
-    fontWeight: '600',
+  customBadgeText: { color: '#C8FF00', fontSize: 10, fontWeight: '700' },
+  exerciseMeta: { fontSize: 12, color: '#666', letterSpacing: 0.3 },
+  deleteBtn: { paddingLeft: 12 },
+  deleteBtnText: { fontSize: 18 },
+  emptyState: { paddingTop: 48, alignItems: 'center' },
+  emptyText: { color: '#555', fontSize: 15 },
+
+  // ── Modal ─────────────────────────────────────────────────────────────────
+  modalWrapper: { flex: 1, backgroundColor: '#0F0F0F' },
+  modalHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 20,
+    paddingVertical: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: '#1E1E1E',
+  },
+  modalTitle: {
+    fontSize: 17,
+    fontWeight: '700',
     color: '#FFFFFF',
-    marginBottom: 2,
   },
-  exerciseMeta: {
-    fontSize: 12,
-    color: '#666',
-    letterSpacing: 0.3,
-  },
-  emptyState: {
-    paddingTop: 48,
+  modalCancelBtn: { minWidth: 60 },
+  modalCancelText: { color: '#888', fontSize: 15 },
+  modalSaveBtn: {
+    backgroundColor: '#C8FF00',
+    paddingHorizontal: 16,
+    paddingVertical: 7,
+    borderRadius: 20,
+    minWidth: 60,
     alignItems: 'center',
   },
-  emptyText: {
+  modalSaveBtnDisabled: { opacity: 0.5 },
+  modalSaveText: { color: '#0A0A0A', fontWeight: '700', fontSize: 14 },
+  modalBody: { flex: 1, paddingHorizontal: 20, paddingTop: 24 },
+
+  fieldLabel: {
+    fontSize: 11,
+    fontWeight: '700',
     color: '#555',
-    fontSize: 15,
+    letterSpacing: 1.2,
+    textTransform: 'uppercase',
+    marginBottom: 10,
   },
+  fieldHint: { fontSize: 12, color: '#444', marginTop: -6, marginBottom: 12 },
+
+  nameInput: {
+    backgroundColor: '#1A1A1A',
+    borderRadius: 12,
+    paddingHorizontal: 16,
+    paddingVertical: 14,
+    color: '#FFFFFF',
+    fontSize: 16,
+    borderWidth: 1,
+    borderColor: '#2A2A2A',
+    marginBottom: 28,
+  },
+
+  muscleGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 10,
+    marginBottom: 28,
+  },
+  muscleChip: {
+    paddingHorizontal: 16,
+    paddingVertical: 9,
+    borderRadius: 20,
+    backgroundColor: '#1A1A1A',
+    borderWidth: 1,
+    borderColor: '#2A2A2A',
+  },
+  muscleChipActive: { backgroundColor: '#C8FF00', borderColor: '#C8FF00' },
+  muscleChipText: { color: '#888', fontSize: 14, fontWeight: '600' },
+  muscleChipTextActive: { color: '#0A0A0A' },
+
+  previewCard: {
+    backgroundColor: '#141414',
+    borderRadius: 14,
+    padding: 16,
+    borderWidth: 1,
+    borderColor: '#1E2E00',
+  },
+  previewLabel: {
+    fontSize: 10,
+    fontWeight: '700',
+    color: '#C8FF00',
+    letterSpacing: 1.2,
+    textTransform: 'uppercase',
+    marginBottom: 8,
+  },
+  previewName: { fontSize: 16, fontWeight: '700', color: '#FFFFFF', marginBottom: 4 },
+  previewMuscle: { fontSize: 12, color: '#666' },
 });

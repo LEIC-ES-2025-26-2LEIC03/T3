@@ -5,6 +5,7 @@ import {
   getDocs,
   setDoc,
   updateDoc,
+  deleteDoc,
   query,
   where,
   orderBy,
@@ -18,11 +19,13 @@ import { EXERCISES } from '../data/exercises';
 
 // ─── Collection path helpers ──────────────────────────────────────────────────
 
-const userDoc     = (userId)             => doc(db, 'users', userId);
-const templateCol = (userId)             => collection(db, 'users', userId, 'templates');
-const templateDoc = (userId, templateId) => doc(db, 'users', userId, 'templates', templateId);
-const workoutCol  = (userId)             => collection(db, 'users', userId, 'workouts');
-const workoutDoc  = (userId, workoutId)  => doc(db, 'users', userId, 'workouts', workoutId);
+const userDoc           = (userId)               => doc(db, 'users', userId);
+const templateCol       = (userId)               => collection(db, 'users', userId, 'templates');
+const templateDoc       = (userId, templateId)   => doc(db, 'users', userId, 'templates', templateId);
+const workoutCol        = (userId)               => collection(db, 'users', userId, 'workouts');
+const workoutDoc        = (userId, workoutId)    => doc(db, 'users', userId, 'workouts', workoutId);
+const customExerciseCol = (userId)               => collection(db, 'users', userId, 'custom_exercises');
+const customExerciseDoc = (userId, exerciseId)   => doc(db, 'users', userId, 'custom_exercises', exerciseId);
 
 // ─── User profile ─────────────────────────────────────────────────────────────
 
@@ -175,7 +178,6 @@ export async function saveWorkout(userId, workout) {
         reps:     s.reps ?? 0,
         rpe:      s.rpe ?? null,
         notes:    s.notes ?? null,
-        isWarmup: !!s.isWarmup,
       })),
     })),
   });
@@ -210,11 +212,10 @@ export async function fetchWorkouts(userId) {
         muscle:     ex.muscle,
         category:   ex.category,
         sets: (ex.sets ?? []).map(s => ({
-          weight:   s.weight,
-          reps:     s.reps,
-          rpe:      s.rpe ?? null,
-          notes:    s.notes ?? null,
-          isWarmup: !!s.isWarmup,
+          weight: s.weight,
+          reps:   s.reps,
+          rpe:    s.rpe ?? null,
+          notes:  s.notes ?? null,
         })),
       })),
     };
@@ -228,6 +229,51 @@ export async function deleteWorkout(userId, id) {
   });
 }
 
+// ─── Custom exercises (user-scoped) ──────────────────────────────────────────
+
+/**
+ * Returns all custom exercises created by the user.
+ * The shape matches static EXERCISES so the rest of the app handles them uniformly:
+ *   { id, name, category, muscle, isCustom: true }
+ */
+export async function fetchCustomExercises(userId) {
+  if (!userId) return [];
+  const snap = await getDocs(customExerciseCol(userId));
+  if (snap.empty) return [];
+  return snap.docs.map(d => {
+    const data = d.data();
+    return {
+      id:       d.id,
+      name:     data.name,
+      category: data.muscle, // category mirrors primary muscle for custom exercises
+      muscle:   data.muscle,
+      isCustom: true,
+    };
+  });
+}
+
+/**
+ * Persists a new custom exercise to Firestore.
+ * `id` should be a pre-generated unique string (e.g. from generateId()).
+ * `name` is the exercise name; `muscle` is a comma-separated muscle string.
+ */
+export async function createCustomExercise(userId, id, name, muscle) {
+  await setDoc(customExerciseDoc(userId, id), {
+    name:      name.trim(),
+    muscle:    muscle.trim(),
+    createdAt: serverTimestamp(),
+    updatedAt: serverTimestamp(),
+  });
+}
+
+/**
+ * Hard-deletes a custom exercise (no tombstone needed — templates store exercise
+ * data inline so deletion only affects future picks, not history).
+ */
+export async function deleteCustomExercise(userId, exerciseId) {
+  await deleteDoc(customExerciseDoc(userId, exerciseId));
+}
+
 // ─── Shared utility ───────────────────────────────────────────────────────────
 
 export function buildExercisesFromTemplate(exercises) {
@@ -237,7 +283,7 @@ export function buildExercisesFromTemplate(exercises) {
     name:       def.name,
     muscle:     def.muscle,
     category:   def.category,
-    sets: [{ id: generateId(), weight: '', reps: '', rpe: null, notes: '', isWarmup: false }],
+    sets: [{ id: generateId(), weight: '', reps: '', rpe: null, notes: '' }],
   }));
 }
 
