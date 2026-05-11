@@ -5,6 +5,7 @@ import {
   getDocs,
   setDoc,
   updateDoc,
+  deleteDoc,
   query,
   where,
   orderBy,
@@ -18,11 +19,13 @@ import { EXERCISES } from '../data/exercises';
 
 // ─── Collection path helpers ──────────────────────────────────────────────────
 
-const userDoc     = (userId)             => doc(db, 'users', userId);
-const templateCol = (userId)             => collection(db, 'users', userId, 'templates');
-const templateDoc = (userId, templateId) => doc(db, 'users', userId, 'templates', templateId);
-const workoutCol  = (userId)             => collection(db, 'users', userId, 'workouts');
-const workoutDoc  = (userId, workoutId)  => doc(db, 'users', userId, 'workouts', workoutId);
+const userDoc           = (userId)               => doc(db, 'users', userId);
+const templateCol       = (userId)               => collection(db, 'users', userId, 'templates');
+const templateDoc       = (userId, templateId)   => doc(db, 'users', userId, 'templates', templateId);
+const workoutCol        = (userId)               => collection(db, 'users', userId, 'workouts');
+const workoutDoc        = (userId, workoutId)    => doc(db, 'users', userId, 'workouts', workoutId);
+const customExerciseCol = (userId)               => collection(db, 'users', userId, 'custom_exercises');
+const customExerciseDoc = (userId, exerciseId)   => doc(db, 'users', userId, 'custom_exercises', exerciseId);
 
 // ─── User profile ─────────────────────────────────────────────────────────────
 
@@ -224,6 +227,83 @@ export async function deleteWorkout(userId, id) {
     deletedAt: serverTimestamp(),
     updatedAt: serverTimestamp(),
   });
+}
+
+// ─── Custom exercises (user-scoped) ──────────────────────────────────────────
+
+/**
+ * Returns all custom exercises created by the user.
+ * The shape matches static EXERCISES so the rest of the app handles them uniformly:
+ *   { id, name, category, muscle, isCustom: true }
+ */
+export async function fetchCustomExercises(userId) {
+  if (!userId) return [];
+  const snap = await getDocs(customExerciseCol(userId));
+  if (snap.empty) return [];
+  return snap.docs.map(d => {
+    const data = d.data();
+    return {
+      id:       d.id,
+      name:     data.name,
+      category: data.muscle, // category mirrors primary muscle for custom exercises
+      muscle:   data.muscle,
+      isCustom: true,
+    };
+  });
+}
+
+/**
+ * Persists a new custom exercise to Firestore.
+ * `id` should be a pre-generated unique string (e.g. from generateId()).
+ * `name` is the exercise name; `muscle` is a comma-separated muscle string.
+ */
+export async function createCustomExercise(userId, id, name, muscle) {
+  await setDoc(customExerciseDoc(userId, id), {
+    name:      name.trim(),
+    muscle:    muscle.trim(),
+    createdAt: serverTimestamp(),
+    updatedAt: serverTimestamp(),
+  });
+}
+
+/**
+ * Hard-deletes a custom exercise (no tombstone needed — templates store exercise
+ * data inline so deletion only affects future picks, not history).
+ */
+export async function deleteCustomExercise(userId, exerciseId) {
+  await deleteDoc(customExerciseDoc(userId, exerciseId));
+}
+
+// ─── Exercise history ─────────────────────────────────────────────────────────
+
+/**
+ * Fetch the workout history for a single exercise.
+ * Returns an array of { workoutId, workoutName, date, sets[] } sorted newest-first.
+ */
+export async function fetchExerciseHistory(userId, exerciseId) {
+  const workouts = await fetchWorkouts(userId);
+
+  const history = [];
+
+  for (const w of workouts) {
+    const matchingExercises = (w.exercises ?? []).filter(
+      ex => ex.exerciseId === exerciseId
+    );
+
+    for (const ex of matchingExercises) {
+      history.push({
+        workoutId:   w.id,
+        workoutName: w.name,
+        date:        w.finished_at ?? w.started_at,
+        sets:        ex.sets ?? [],
+      });
+    }
+  }
+
+  // Already sorted newest-first from fetchWorkouts, but ensure it
+  history.sort((a, b) => new Date(b.date) - new Date(a.date));
+
+  return history;
 }
 
 // ─── Shared utility ───────────────────────────────────────────────────────────
