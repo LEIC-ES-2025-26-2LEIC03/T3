@@ -115,10 +115,10 @@ export default function BodyMetricsScreen({ navigation }) {
             onPress={() => navigation.goBack()}
             style={styles.backBtn}
           >
-            <Text style={styles.backArrow}>‹</Text>
+            <Text style={styles.backText}>Back</Text>
           </TouchableOpacity>
           <Text style={styles.title}>Body Metrics</Text>
-          <View style={styles.backBtn} />
+          <View style={styles.backBtnSpacer} />
         </View>
 
         <ScrollView
@@ -241,16 +241,19 @@ const styles = StyleSheet.create({
     borderBottomColor: '#181818',
   },
   backBtn: {
-    width: 36,
-    height: 36,
-    alignItems: 'center',
-    justifyContent: 'center',
+    backgroundColor: '#1E1E1E',
+    paddingHorizontal: 16,
+    paddingVertical: 9,
+    borderRadius: 12,
   },
-  backArrow: {
-    fontSize: 28,
-    color: '#C8FF00',
-    fontWeight: '300',
-    marginTop: -2,
+  backText: {
+    color: '#FFFFFF',
+    fontSize: 13,
+    fontWeight: '800',
+    letterSpacing: 0.5,
+  },
+  backBtnSpacer: {
+    width: 62,
   },
   title: {
     fontSize: 18,

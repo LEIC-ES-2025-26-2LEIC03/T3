@@ -233,6 +233,7 @@ async function migrate(db) {
     await db.runAsync(`INSERT OR REPLACE INTO _migrations (version) VALUES (2)`);
   }
 
+  
   // ── Sync static catalogue ───────────────────────────────────────────────
   if (currentVersion < 5) {
     await db.withTransactionAsync(async () => {

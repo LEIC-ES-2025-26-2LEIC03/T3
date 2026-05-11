@@ -15,7 +15,7 @@ import TabNavigator from './src/navigation/TabNavigator';
 
 import { auth } from './src/utils/firebaseConfig';
 import { getStayLoggedIn, logout } from './src/services/authService';
-import { getProfile } from './src/services/profileService';
+import { getProfile } from './src/utils/firestoreDb';
 
 const Root = createStackNavigator();
 
@@ -46,7 +46,7 @@ export default function AppNavigator() {
         // Check if the user already completed their profile
         try {
           const profile = await getProfile(firebaseUser.uid);
-          const hasProfile = profile.heightCm != null && profile.weightKg != null;
+          const hasProfile = profile.height_cm != null && profile.weight_kg != null;
           setProfileComplete(hasProfile);
         } catch {
           setProfileComplete(false);
