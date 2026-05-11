@@ -272,7 +272,8 @@ export async function createCustomExercise(userId, id, name, muscle) {
  */
 export async function deleteCustomExercise(userId, exerciseId) {
   await deleteDoc(customExerciseDoc(userId, exerciseId));
-  
+}
+
 // ─── Exercise history ─────────────────────────────────────────────────────────
 
 /**

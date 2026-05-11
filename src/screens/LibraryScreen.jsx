@@ -200,7 +200,11 @@ export default function LibraryScreen() {
           style={styles.exerciseList}
           contentContainerStyle={styles.exerciseListContent}
           renderItem={({ item }) => (
-            <View style={styles.exerciseRow}>
+            <TouchableOpacity
+              style={styles.exerciseRow}
+              activeOpacity={0.7}
+              onPress={() => navigation.navigate('ExerciseHistory', { exercise: item })}
+            >
               <View style={styles.exerciseInfo}>
                 <View style={styles.nameRow}>
                   <Text style={styles.exerciseName}>{item.name}</Text>
@@ -212,16 +216,18 @@ export default function LibraryScreen() {
                 </View>
                 <Text style={styles.exerciseMeta}>{item.muscle}</Text>
               </View>
-              {item.isCustom && (
+              {item.isCustom ? (
                 <TouchableOpacity
                   style={styles.deleteBtn}
-                  onPress={() => handleDeleteCustom(item)}
+                  onPress={(e) => { e.stopPropagation(); handleDeleteCustom(item); }}
                   hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
                 >
                   <Text style={styles.deleteBtnText}>🗑</Text>
                 </TouchableOpacity>
+              ) : (
+                <Text style={styles.chevron}>›</Text>
               )}
-            </View>
+            </TouchableOpacity>
           )}
           ListEmptyComponent={
             <View style={styles.emptyState}>
@@ -306,30 +312,7 @@ export default function LibraryScreen() {
           </ScrollView>
         </KeyboardAvoidingView>
       </Modal>
-      <FlatList
-        data={filtered}
-        keyExtractor={item => item.id}
-        style={styles.exerciseList}
-        contentContainerStyle={styles.exerciseListContent}
-        renderItem={({ item }) => (
-          <TouchableOpacity
-            style={styles.exerciseRow}
-            activeOpacity={0.7}
-            onPress={() => navigation.navigate('ExerciseHistory', { exercise: item })}
-          >
-            <View style={styles.exerciseInfo}>
-              <Text style={styles.exerciseName}>{item.name}</Text>
-              <Text style={styles.exerciseMeta}>{item.muscle}</Text>
-            </View>
-            <Text style={styles.chevron}>›</Text>
-          </TouchableOpacity>
-        )}
-        ListEmptyComponent={
-          <View style={styles.emptyState}>
-            <Text style={styles.emptyText}>No exercises found</Text>
-          </View>
-        }
-      />
+
     </View>
   );
 }
@@ -457,22 +440,15 @@ const styles = StyleSheet.create({
     paddingVertical: 7,
     borderRadius: 20,
     minWidth: 60,
-  exerciseMeta: {
-    fontSize: 12,
-    color: '#666',
-    letterSpacing: 0.3,
+    alignItems: 'center',
   },
+  modalSaveBtnDisabled: { opacity: 0.5 },
   chevron: {
     fontSize: 20,
     color: '#444',
     fontWeight: '300',
     marginLeft: 8,
   },
-  emptyState: {
-    paddingTop: 48,
-    alignItems: 'center',
-  },
-  modalSaveBtnDisabled: { opacity: 0.5 },
   modalSaveText: { color: '#0A0A0A', fontWeight: '700', fontSize: 14 },
   modalBody: { flex: 1, paddingHorizontal: 20, paddingTop: 24 },
 
