@@ -393,6 +393,44 @@ You can find below information and references related with the project managemen
 
 ### Sprint 2
 
+**Beggining**
+
+![](docs/sprint_planning/begin_sprint2.jpeg)
+
+**End**
+
+
+#### Retrospective
+
+**Did well**
+- Implemented a wide variety of new features
+- Good Solid Code
+- Everything on the Sprint Backlog was implemented
+- Implemented both unit and acceptance tests
+- Kept updated documentation
+- Used pull and merge requests properly
+
+**Do differently**
+- Improve peer-to-peer visibility of work progress so team members can quickly know who’s blocked, what’s in progress, and when to expect review.
+
+
+**Puzzles**
+
+
+**Improvements for Sprint 3**
+- Improve communication to ensure the best overall performance. 
+
+#### Review
+
+- Major improvements in planning in relation to sprint 1, wich allowed for more and better work to be done. 
+
+### Features Added
+
+- Account creation and Session related procedures
+- Warm-up set marker
+- Favourite Exercises and Workout Streak
+- Workout Tracker and Lorkout Log
+
 ### Sprint 3
 
 ### Sprint 4
