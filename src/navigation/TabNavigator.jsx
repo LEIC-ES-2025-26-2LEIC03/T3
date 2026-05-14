@@ -3,7 +3,7 @@ import { View, Text, StyleSheet } from 'react-native';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 
 import HistoryScreen from '../screens/HistoryScreen';
-import LibraryScreen from '../screens/LibraryScreen';
+import LibraryNavigator from './LibraryNavigator';
 import SettingsScreen from '../screens/SettingsScreen';
 import HomeNavigator from './HomeNavigator';
 import ProfileNavigator from './ProfileNavigator';
@@ -53,7 +53,7 @@ export default function TabNavigator() {
       />
       <Tab.Screen
         name="LibraryTab"
-        component={LibraryScreen}
+        component={LibraryNavigator}
         options={{
           tabBarIcon: ({ focused }) => <TabIcon label="Library" focused={focused} />,
         }}
