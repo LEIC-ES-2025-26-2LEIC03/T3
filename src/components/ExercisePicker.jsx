@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import {
   Modal,
   View,
@@ -11,37 +11,79 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { EXERCISES, MUSCLES } from '../data/exercises';
-import { fetchCustomExercises } from '../utils/firestoreDb';
 import { auth } from '../utils/firebaseConfig';
+import { fetchFavourites, toggleFavourite, fetchCustomExercises } from '../utils/firestoreDb';
+import { onAuthStateChanged } from 'firebase/auth';
+
+// ─── Constants ────────────────────────────────────────────────────────────────
+
+const FAVOURITES_KEY = 'Favourites';
+
+// ─── Sub-components ───────────────────────────────────────────────────────────
+
+function HeartIcon({ filled }) {
+  return (
+    <Text style={[styles.heartIcon, filled && styles.heartIconFilled]}>
+      {filled ? '♥' : '♡'}
+    </Text>
+  );
+}
+
+// ─── Main component ───────────────────────────────────────────────────────────
 
 export default function ExercisePicker({ visible, onSelect, onClose }) {
-  const [search, setSearch] = useState('');
-  const [activeMuscle, setActiveMuscle] = useState('All');
+  const [search, setSearch]               = useState('');
+  const [activeMuscle, setActiveMuscle]   = useState('All');
+  const [favourites, setFavourites]       = useState(new Set());
+  const [togglingId, setTogglingId]       = useState(null);
+  const [loadingFavs, setLoadingFavs]     = useState(false);
   const [customExercises, setCustomExercises] = useState([]);
   const [loadingCustom, setLoadingCustom] = useState(false);
+  const [userId, setUserId]               = useState(null);
 
-  // Load custom exercises every time the picker opens
+  // ── Get real userId from Firebase Auth ────────────────────────────────────
   useEffect(() => {
-    if (!visible) return;
-    const userId = auth.currentUser?.uid;
-    if (!userId) return;
+    const unsubscribe = onAuthStateChanged(auth, user => {
+      setUserId(user?.uid ?? null);
+    });
+    return unsubscribe;
+  }, []);
 
+  // ── Load favourites and custom exercises when modal opens ─────────────────
+  useEffect(() => {
+    if (!visible || !userId) return;
+
+    // Load favourites
+    setLoadingFavs(true);
+    fetchFavourites(userId)
+      .then(setFavourites)
+      .catch(() => {/* silently fall back to empty set */})
+      .finally(() => setLoadingFavs(false));
+
+    // Load custom exercises
     setLoadingCustom(true);
     fetchCustomExercises(userId)
       .then(setCustomExercises)
       .catch(() => setCustomExercises([]))
       .finally(() => setLoadingCustom(false));
-  }, [visible]);
+  }, [visible, userId]);
 
+  // ── Combined exercise list (built-in + custom) ────────────────────────────
   const allExercises = [...EXERCISES, ...customExercises];
 
+  // ── Filtered exercise list ────────────────────────────────────────────────
   const filtered = allExercises.filter(ex => {
-    const matchesSearch = ex.name.toLowerCase().includes(search.toLowerCase());
-    const matchesMuscle = activeMuscle === 'All' || ex.muscle.includes(activeMuscle);
-    return matchesSearch && matchesMuscle;
+    const matchesSearch   = ex.name.toLowerCase().includes(search.toLowerCase());
+    const matchesFav      = activeMuscle === FAVOURITES_KEY ? favourites.has(ex.id) : true;
+    const matchesMuscle   = activeMuscle === 'All' || activeMuscle === FAVOURITES_KEY
+      ? true
+      : ex.muscle.includes(activeMuscle);
+    return matchesSearch && matchesFav && matchesMuscle;
   });
 
-  const filterOptions = ['All', ...MUSCLES];
+  const filterOptions = ['All', FAVOURITES_KEY, ...MUSCLES];
+
+  // ── Handlers ─────────────────────────────────────────────────────────────
 
   const handleSelect = (exercise) => {
     onSelect(exercise);
@@ -49,18 +91,97 @@ export default function ExercisePicker({ visible, onSelect, onClose }) {
     setActiveMuscle('All');
   };
 
+  const handleToggleFavourite = useCallback(async (exercise) => {
+    if (!userId || togglingId === exercise.id) return;
+
+    setTogglingId(exercise.id);
+    const wasActive = favourites.has(exercise.id);
+
+    // Optimistic update
+    setFavourites(prev => {
+      const next = new Set(prev);
+      wasActive ? next.delete(exercise.id) : next.add(exercise.id);
+      return next;
+    });
+
+    try {
+      await toggleFavourite(userId, exercise);
+    } catch {
+      // Roll back on error
+      setFavourites(prev => {
+        const next = new Set(prev);
+        wasActive ? next.add(exercise.id) : next.delete(exercise.id);
+        return next;
+      });
+    } finally {
+      setTogglingId(null);
+    }
+  }, [userId, favourites, togglingId]);
+
+  const handleClose = () => {
+    setSearch('');
+    setActiveMuscle('All');
+    onClose();
+  };
+
+  // ── Render ────────────────────────────────────────────────────────────────
+
+  const renderExercise = ({ item }) => {
+    const isFav      = favourites.has(item.id);
+    const isToggling = togglingId === item.id;
+
+    return (
+      <TouchableOpacity
+        style={styles.exerciseRow}
+        onPress={() => handleSelect(item)}
+        activeOpacity={0.7}
+      >
+        <View style={styles.exerciseInfo}>
+          <View style={styles.nameRow}>
+            <Text style={styles.exerciseName}>{item.name}</Text>
+            {item.isCustom && (
+              <View style={styles.customBadge}>
+                <Text style={styles.customBadgeText}>Custom</Text>
+              </View>
+            )}
+          </View>
+          <Text style={styles.exerciseMeta}>{item.muscle}</Text>
+        </View>
+
+        {/* Favourite button */}
+        <TouchableOpacity
+          style={[styles.favBtn, isFav && styles.favBtnActive]}
+          onPress={() => handleToggleFavourite(item)}
+          hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+          disabled={isToggling}
+        >
+          {isToggling ? (
+            <ActivityIndicator size="small" color="#C8FF00" style={{ width: 22 }} />
+          ) : (
+            <HeartIcon filled={isFav} />
+          )}
+        </TouchableOpacity>
+
+        {/* Add icon */}
+        <Text style={styles.addIcon}>＋</Text>
+      </TouchableOpacity>
+    );
+  };
+
+  const isLoading = loadingFavs || loadingCustom;
+
   return (
     <Modal visible={visible} animationType="slide" presentationStyle="pageSheet">
       <SafeAreaView style={styles.container}>
-        {/* Header */}
+        {/* ── Header ── */}
         <View style={styles.header}>
           <Text style={styles.title}>Add Exercise</Text>
-          <TouchableOpacity onPress={onClose} style={styles.closeBtn}>
+          <TouchableOpacity onPress={handleClose} style={styles.closeBtn}>
             <Text style={styles.closeText}>✕</Text>
           </TouchableOpacity>
         </View>
 
-        {/* Search */}
+        {/* ── Search ── */}
         <View style={styles.searchContainer}>
           <Text style={styles.searchIcon}>🔍</Text>
           <TextInput
@@ -78,7 +199,7 @@ export default function ExercisePicker({ visible, onSelect, onClose }) {
           )}
         </View>
 
-        {/* Muscle filter */}
+        {/* ── Muscle / Favourites filter ── */}
         <FlatList
           horizontal
           showsHorizontalScrollIndicator={false}
@@ -86,21 +207,43 @@ export default function ExercisePicker({ visible, onSelect, onClose }) {
           keyExtractor={item => item}
           style={styles.categoryListContainer}
           contentContainerStyle={styles.categoryList}
-          renderItem={({ item }) => (
-            <TouchableOpacity
-              testID={`category-chip-${item}`}
-              style={[styles.categoryChip, activeMuscle === item && styles.categoryChipActive]}
-              onPress={() => setActiveMuscle(item)}
-            >
-              <Text style={[styles.categoryText, activeMuscle === item && styles.categoryTextActive]}>
-                {item}
-              </Text>
-            </TouchableOpacity>
-          )}
+          renderItem={({ item }) => {
+            const isActive  = activeMuscle === item;
+            const isFavChip = item === FAVOURITES_KEY;
+            return (
+              <TouchableOpacity
+                testID={`category-chip-${item}`}
+                style={[
+                  styles.categoryChip,
+                  isActive && styles.categoryChipActive,
+                  isFavChip && styles.favChip,
+                  isFavChip && isActive && styles.favChipActive,
+                ]}
+                onPress={() => setActiveMuscle(item)}
+              >
+                {isFavChip && (
+                  <Text style={[styles.favChipHeart, isActive && styles.favChipHeartActive]}>
+                    ♥
+                  </Text>
+                )}
+                <Text style={[
+                  styles.categoryText,
+                  isActive && styles.categoryTextActive,
+                  isFavChip && styles.favChipText,
+                  isFavChip && isActive && styles.favChipTextActive,
+                ]}>
+                  {item}
+                </Text>
+                {isFavChip && loadingFavs && (
+                  <ActivityIndicator size="small" color="#C8FF00" style={{ marginLeft: 4 }} />
+                )}
+              </TouchableOpacity>
+            );
+          }}
         />
 
-        {/* Exercise list */}
-        {loadingCustom ? (
+        {/* ── Exercise list ── */}
+        {isLoading ? (
           <ActivityIndicator color="#C8FF00" style={{ marginTop: 32 }} />
         ) : (
           <FlatList
@@ -108,25 +251,20 @@ export default function ExercisePicker({ visible, onSelect, onClose }) {
             keyExtractor={item => item.id}
             style={styles.exerciseList}
             contentContainerStyle={styles.exerciseListContent}
-            renderItem={({ item }) => (
-              <TouchableOpacity style={styles.exerciseRow} onPress={() => handleSelect(item)}>
-                <View style={styles.exerciseInfo}>
-                  <View style={styles.nameRow}>
-                    <Text style={styles.exerciseName}>{item.name}</Text>
-                    {item.isCustom && (
-                      <View style={styles.customBadge}>
-                        <Text style={styles.customBadgeText}>Custom</Text>
-                      </View>
-                    )}
-                  </View>
-                  <Text style={styles.exerciseMeta}>{item.muscle}</Text>
-                </View>
-                <Text style={styles.addIcon}>＋</Text>
-              </TouchableOpacity>
-            )}
+            renderItem={renderExercise}
             ListEmptyComponent={
               <View style={styles.emptyState}>
-                <Text style={styles.emptyText}>No exercises found</Text>
+                {activeMuscle === FAVOURITES_KEY && !search ? (
+                  <>
+                    <Text style={styles.emptyIcon}>♡</Text>
+                    <Text style={styles.emptyText}>No favourites yet</Text>
+                    <Text style={styles.emptySubText}>
+                      Tap the heart on any exercise to save it here
+                    </Text>
+                  </>
+                ) : (
+                  <Text style={styles.emptyText}>No exercises found</Text>
+                )}
               </View>
             }
           />
@@ -135,6 +273,8 @@ export default function ExercisePicker({ visible, onSelect, onClose }) {
     </Modal>
   );
 }
+
+// ─── Styles ───────────────────────────────────────────────────────────────────
 
 const styles = StyleSheet.create({
   container: {
@@ -165,6 +305,8 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   closeText: { color: '#999', fontSize: 14, fontWeight: '600' },
+
+  // Search
   searchContainer: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -183,6 +325,8 @@ const styles = StyleSheet.create({
     fontSize: 15,
   },
   clearBtn: { color: '#555', fontSize: 14, paddingLeft: 8 },
+
+  // Category / muscle chips
   categoryListContainer: { flexGrow: 0, marginBottom: 8 },
   categoryList: { paddingHorizontal: 16, paddingBottom: 4, gap: 8 },
   categoryChip: {
@@ -193,10 +337,26 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: '#2A2A2A',
     marginRight: 8,
+    flexDirection: 'row',
+    alignItems: 'center',
   },
   categoryChipActive: { backgroundColor: '#C8FF00', borderColor: '#C8FF00' },
   categoryText: { color: '#888', fontSize: 13, fontWeight: '600' },
   categoryTextActive: { color: '#0F0F0F' },
+
+  // Favourites chip
+  favChip: {
+    borderColor: '#FF6B9D44',
+    backgroundColor: '#1A1A1A',
+    gap: 5,
+  },
+  favChipActive: { backgroundColor: '#FF6B9D', borderColor: '#FF6B9D' },
+  favChipHeart: { fontSize: 12, color: '#FF6B9D' },
+  favChipHeartActive: { color: '#FFFFFF' },
+  favChipText: { color: '#FF6B9D' },
+  favChipTextActive: { color: '#FFFFFF' },
+
+  // Exercise rows
   exerciseList: { flex: 1 },
   exerciseListContent: { paddingHorizontal: 16, paddingTop: 4, paddingBottom: 16 },
   exerciseRow: {
@@ -224,12 +384,43 @@ const styles = StyleSheet.create({
   },
   customBadgeText: { color: '#C8FF00', fontSize: 10, fontWeight: '700' },
   exerciseMeta: { fontSize: 12, color: '#666', letterSpacing: 0.3 },
+
+  // Favourite button
+  favBtn: {
+    width: 36,
+    height: 36,
+    borderRadius: 10,
+    backgroundColor: '#1A1A1A',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginLeft: 8,
+    borderWidth: 1,
+    borderColor: 'transparent',
+  },
+  favBtnActive: {
+    backgroundColor: 'rgba(255, 107, 157, 0.12)',
+    borderColor: 'rgba(255, 107, 157, 0.3)',
+  },
+  heartIcon: { fontSize: 18, color: '#444' },
+  heartIconFilled: { color: '#FF6B9D' },
+
+  // Add icon
   addIcon: {
     fontSize: 22,
     color: '#C8FF00',
     fontWeight: '300',
-    marginLeft: 12,
+    marginLeft: 8,
   },
-  emptyState: { paddingTop: 48, alignItems: 'center' },
-  emptyText: { color: '#555', fontSize: 15 },
+
+  // Empty state
+  emptyState: { paddingTop: 48, alignItems: 'center', gap: 8 },
+  emptyIcon: { fontSize: 40, color: '#333', marginBottom: 4 },
+  emptyText: { color: '#555', fontSize: 15, fontWeight: '600' },
+  emptySubText: {
+    color: '#3A3A3A',
+    fontSize: 13,
+    textAlign: 'center',
+    paddingHorizontal: 32,
+    lineHeight: 20,
+  },
 });
