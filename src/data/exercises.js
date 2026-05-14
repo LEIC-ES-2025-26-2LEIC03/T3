@@ -181,9 +181,17 @@ export const EXERCISES = [
   { id: 'forearm_extensions', name: 'Forearm extensions', category: 'Forearms', muscle: 'Forearms' },
   { id: 'forearm_curls', name: 'Forearm curls', category: 'Forearms', muscle: 'Forearms' },
   { id: 'reverse_curls', name: 'Reverse curls', category: 'Forearms', muscle: 'Forearms' },
+
+  // Cardio
+  { id: 'running', name: 'Running', category: 'Cardio', muscle: 'Cardio' },
+  { id: 'cycling', name: 'Cycling', category: 'Cardio', muscle: 'Cardio' },
+  { id: 'swimming', name: 'Swimming', category: 'Cardio', muscle: 'Cardio' },
+  { id: 'rowing', name: 'Rowing', category: 'Cardio', muscle: 'Cardio' },
+  { id: 'elliptical', name: 'Elliptical', category: 'Cardio', muscle: 'Cardio' },
+  { id : 'walking', name: 'Walking', category: 'Cardio', muscle: 'Cardio' },
 ];
 
 export const MUSCLES = [
   'Chest', 'Back', 'Shoulders', 'Triceps', 'Biceps', 
-  'Quads', 'Hamstrings', 'Glutes', 'Core', 'Calves', 'Forearms'
+  'Quads', 'Hamstrings', 'Glutes', 'Core', 'Calves', 'Forearms', 'Cardio'
 ];
