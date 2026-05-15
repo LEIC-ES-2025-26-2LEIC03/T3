@@ -43,3 +43,5 @@ ironlog.keystore
 
 # Firebase API
 .env
+test-results.txt
+package-lock.json
