@@ -423,14 +423,20 @@ You can find below information and references related with the project managemen
 
 #### Review
 
-- Major improvements in planning in relation to sprint 1, which allowed for more and better work to be done. 
+- Major improvements in planning in relation to sprint 1, which allowed for more and better work to be done.
+
+AI Usage:
+
+Throughout our project, we have been faced with multiple situations where the use of LLMs and other kinds of AI was useful. We used both online LLMs, namely Claude and ChatGPT, to help us with certain decisions regarding what would work better when it came to specific design choices, and also integrated LLMs in IDEs to automate repetitive and redundant tasks like creating tests for already implemented features of our application, and even assisting with the implementation of certain features when they were more straightforward or boilerplate in nature.
+However, all generated content and suggestions were always reviewed, adapted, and validated by the team before being integrated into the final project. AI tools were mainly used as productivity aid and to speed up development in areas where they could reduce manual work without replacing the decision-making, design and implementation process carried out by the group.
 
 ### Features Added
 
 - Account creation and Session related procedures
 - Warm-up set marker
 - Favourite Exercises and Workout Streak
-- Workout Tracker and Lorkout Log
+- Workout Tracker and Workout Log
+- Create new Exercises
 
 ### Setup Guide
 
