@@ -432,6 +432,62 @@ You can find below information and references related with the project managemen
 - Favourite Exercises and Workout Streak
 - Workout Tracker and Lorkout Log
 
+### Setup Guide
+
+  A step-by-step guide for anyone cloning the repo and running the app locally.
+
+  Dependencies:
+
+  In order to make use of the code you must first have the following installed:
+
+  - «Node.js (18 or later) nodejs.org ;
+  - Expo CLI npm install -g expo-cli  ;
+  - Either Expo Go on your mobile device or any emulator like Android Studio or Xcode;
+
+  Now you should be able to clone the repo and install dependencies:
+
+  git clone <repo-url>
+  cd w8
+  npm install
+
+  Database Configuration:
+
+  Our app uses Firebase for authentication and Firestore for its database.
+  
+  Create a Firebase project:
+
+  - Go to console.firebase.google.com ;
+  - Click Add project and follow the prompts ;
+  - Once created, click the </> (Web) icon to register a web app ;
+  - Give it a name (e.g. w8-app) and click Register app ;
+  - Firebase will show you a firebaseConfig object — keep this page open;
+
+  You will also need to enable Email/Password authentication:
+
+  - In the Firebase console, go to Authentication -> Sign-in method ;
+  - Click Email/Password and enable it ;
+  - Click Save ;
+
+  And at last create your Firestore database:
+
+  - Go to Firestore Database → Create database ;
+  - Choose Start in production mode ;
+  - Pick a region close to your users and click Enable;
+
+  Now you should be able to connect the db to the code by creating a .env file at the project root with this exact structure:
+
+  EXPO_PUBLIC_FIREBASE_API_KEY=your_api_key
+  EXPO_PUBLIC_FIREBASE_AUTH_DOMAIN=your_project.firebaseapp.com
+  EXPO_PUBLIC_FIREBASE_PROJECT_ID=your_project_id
+  EXPO_PUBLIC_FIREBASE_STORAGE_BUCKET=your_project.appspot.com
+  EXPO_PUBLIC_FIREBASE_MESSAGING_SENDER_ID=your_sender_id
+  EXPO_PUBLIC_FIREBASE_APP_ID=your_app_id
+  EXPO_PUBLIC_FIREBASE_MEASUREMENT_ID=your_measurement_id
+
+  The code should now all be functional and you should be able to run it by running on the project root:
+
+  npx expo start or npx expo start --tunnel (if you can't connect via LAN)
+
 ### Sprint 3
 
 ### Sprint 4
