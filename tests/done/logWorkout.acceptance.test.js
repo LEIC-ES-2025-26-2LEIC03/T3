@@ -50,15 +50,15 @@ describe('User Story 1 - Log a Workout Session', () => {
       renderWorkoutLogger();
 
       fireEvent.press(screen.getByText('＋  Add Exercise'));
-      fireEvent.press(screen.getByText('Bench Press'));
+      fireEvent.press(screen.getByText('Bench press'));
 
-      expect(screen.getByText('Bench Press')).toBeTruthy();
+      expect(screen.getByText('Bench press')).toBeTruthy();
     });
 
     it('AT-1A-02: set with weight and reps is stored in local state', () => {
       renderWorkoutLogger();
       fireEvent.press(screen.getByText('＋  Add Exercise'));
-      fireEvent.press(screen.getByText('Bench Press'));
+      fireEvent.press(screen.getByText('Bench press'));
 
       const inputs = screen.getAllByPlaceholderText('0');
       fireEvent.changeText(inputs[0], '80'); // weight

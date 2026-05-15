@@ -31,47 +31,25 @@ const persistProfile = async (userId, profile) => {
 
 // ─── US-03 | Get Profile ──────────────────────────────────────────────────
 
-/**
- * Retrieve the profile for a given user.
- * New users get the default profile (units: 'kg').
- */
 export const getProfile = async (userId) => {
-  const profile = await loadProfile(userId);
-  return profile;
+  try {
+    const profile = await loadProfile(userId);
+    return profile;
+  } catch (e) {
+    return { user_id: userId };   // fallback shape (kept for backward compat)
+  }
 };
 
 // ─── US-20 | Get User Profile ─────────────────────────────────────────────
 
-/**
- * Alias used by US-20 tests.
- */
 export const getUserProfile = async (userId) => {
   return getProfile(userId);
 };
 
 // ─── US-01 + US-03 | Update Profile Fields ────────────────────────────────
 
-/**
- * Update scalar profile fields: displayName, units.
- *
- * Validation rules:
- *   displayName  – required, max 30 chars
- *   units        – must be 'kg' or 'lbs'
- */
 export const updateProfile = async (userId, updates) => {
   try {
-    // ── displayName validation ──────────────────────────────────────────
-    if ('displayName' in updates) {
-      const name = updates.displayName;
-      if (!name || name.trim() === '') {
-        return { success: false, error: 'Name is required and cannot be empty.' };
-      }
-      if (name.trim().length > 30) {
-        return { success: false, error: 'Name is too long — max 30 characters.' };
-      }
-      updates = { ...updates, displayName: name.trim() };
-    }
-
     // ── units validation ────────────────────────────────────────────────
     if ('units' in updates) {
       if (!VALID_UNITS.includes(updates.units)) {
@@ -81,53 +59,12 @@ export const updateProfile = async (userId, updates) => {
 
     const current = await loadProfile(userId);
     const updated = { ...current, ...updates };
+
     await persistProfile(userId, updated);
 
     return { success: true, profile: updated };
   } catch (e) {
     return { success: false, error: 'Could not update profile. Please try again.' };
-  }
-};
-
-// ─── US-02 | Update Profile Photo ─────────────────────────────────────────
-
-const ALLOWED_IMAGE_TYPES = ['image/jpeg', 'image/png', 'image/webp', 'image/gif'];
-const MAX_PHOTO_BYTES = 5 * 1024 * 1024; // 5 MB
-
-/**
- * Attach a photo to the user profile.
- * Expects: { mimeType: string, sizeBytes: number, uri?: string }
- */
-export const updateProfilePhoto = async (userId, photo) => {
-  try {
-    if (!ALLOWED_IMAGE_TYPES.includes(photo.mimeType)) {
-      return { success: false, error: 'Unsupported format — must be an image (JPEG, PNG, WebP, GIF).' };
-    }
-    if (photo.sizeBytes > MAX_PHOTO_BYTES) {
-      return { success: false, error: 'File is too large — max 5 MB allowed.' };
-    }
-
-    const current = await loadProfile(userId);
-    const photoUrl = photo.uri ?? `local://photos/${userId}-${Date.now()}`;
-    const updated = { ...current, photoUrl };
-    await persistProfile(userId, updated);
-
-    return { success: true, profile: updated };
-  } catch (e) {
-    return { success: false, error: 'Could not update photo. Please try again.' };
-  }
-};
-
-// ─── US-02 | Remove Profile Photo ─────────────────────────────────────────
-
-export const removeProfilePhoto = async (userId) => {
-  try {
-    const current = await loadProfile(userId);
-    const updated = { ...current, photoUrl: null };
-    await persistProfile(userId, updated);
-    return { success: true, profile: updated };
-  } catch (e) {
-    return { success: false, error: 'Could not remove photo. Please try again.' };
   }
 };
 
@@ -170,6 +107,7 @@ export const saveUserProfile = async (userId, profileData) => {
       };
     }
 
+    // load existing profile to preserve other fields
     const current = await loadProfile(userId);
     const updated = {
       ...current,
@@ -178,6 +116,7 @@ export const saveUserProfile = async (userId, profileData) => {
       bodyFatPercentage: bodyFatPercentage ?? null,
       fitnessGoals: fitnessGoals ?? '',
     };
+
     await persistProfile(userId, updated);
 
     // ── append snapshot to history ──────────────────────────────────────
@@ -195,10 +134,6 @@ export const saveUserProfile = async (userId, profileData) => {
 
 // ─── Body Metrics History ─────────────────────────────────────────────────
 
-/**
- * Append a new body metrics snapshot to the user's history.
- * Each snapshot: { weightKg, bodyFatPercentage, date (ISO string) }
- */
 const appendMetricsSnapshot = async (userId, snapshot) => {
   const raw = await AsyncStorage.getItem(metricsHistoryKey(userId));
   const history = raw ? JSON.parse(raw) : [];
@@ -206,9 +141,6 @@ const appendMetricsSnapshot = async (userId, snapshot) => {
   await AsyncStorage.setItem(metricsHistoryKey(userId), JSON.stringify(history));
 };
 
-/**
- * Retrieve full body metrics history for a user, newest first.
- */
 export const getMetricsHistory = async (userId) => {
   try {
     const raw = await AsyncStorage.getItem(metricsHistoryKey(userId));

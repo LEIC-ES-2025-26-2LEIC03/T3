@@ -19,15 +19,15 @@ import { EXERCISES } from '../data/exercises';
 
 // ─── Collection path helpers ──────────────────────────────────────────────────
 
-const userDoc           = (userId)               => doc(db, 'users', userId);
-const templateCol       = (userId)               => collection(db, 'users', userId, 'templates');
-const templateDoc       = (userId, templateId)   => doc(db, 'users', userId, 'templates', templateId);
-const workoutCol        = (userId)               => collection(db, 'users', userId, 'workouts');
-const workoutDoc        = (userId, workoutId)    => doc(db, 'users', userId, 'workouts', workoutId);
-const favouriteCol  = (userId)             => collection(db, 'users', userId, 'favourites');
-const favouriteDoc  = (userId, exerciseId) => doc(db, 'users', userId, 'favourites', exerciseId);
-const customExerciseCol = (userId)               => collection(db, 'users', userId, 'custom_exercises');
-const customExerciseDoc = (userId, exerciseId)   => doc(db, 'users', userId, 'custom_exercises', exerciseId);
+const userDoc = (userId) => doc(db, 'users', userId);
+const templateCol = (userId) => collection(db, 'users', userId, 'templates');
+const templateDoc = (userId, templateId) => doc(db, 'users', userId, 'templates', templateId);
+const workoutCol = (userId) => collection(db, 'users', userId, 'workouts');
+const workoutDoc = (userId, workoutId) => doc(db, 'users', userId, 'workouts', workoutId);
+const favouriteCol = (userId) => collection(db, 'users', userId, 'favourites');
+const favouriteDoc = (userId, exerciseId) => doc(db, 'users', userId, 'favourites', exerciseId);
+const customExerciseCol = (userId) => collection(db, 'users', userId, 'custom_exercises');
+const customExerciseDoc = (userId, exerciseId) => doc(db, 'users', userId, 'custom_exercises', exerciseId);
 
 // ─── User profile ─────────────────────────────────────────────────────────────
 
@@ -36,28 +36,28 @@ export async function getProfile(userId) {
   if (!snap.exists()) return { user_id: userId };
   const d = snap.data();
   return {
-    user_id:             userId,
-    units:               d.units ?? 'kg',
-    height_cm:           d.heightCm ?? null,
-    weight_kg:           d.weightKg ?? null,
+    user_id: userId,
+    units: d.units ?? 'kg',
+    height_cm: d.heightCm ?? null,
+    weight_kg: d.weightKg ?? null,
     body_fat_percentage: d.bodyFatPercentage ?? null,
-    fitness_goals:       d.fitnessGoals ?? null,
+    fitness_goals: d.fitnessGoals ?? null,
   };
 }
 
 export async function upsertProfile(userId, fields) {
-  await setDoc(userDoc(userId), {
-    units:             fields.units ?? 'kg',
-    heightCm:          fields.heightCm ?? null,
-    weightKg:          fields.weightKg ?? null,
-    bodyFatPercentage: fields.bodyFatPercentage ?? null,
-    fitnessGoals:      fields.fitnessGoals ?? null,
-    updatedAt:         serverTimestamp(),
-  }, { merge: true });
+  const data = { updatedAt: serverTimestamp() };
+  if (fields.units !== undefined) data.units = fields.units;
+  if (fields.heightCm !== undefined) data.heightCm = fields.heightCm;
+  if (fields.weightKg !== undefined) data.weightKg = fields.weightKg;
+  if (fields.bodyFatPercentage !== undefined) data.bodyFatPercentage = fields.bodyFatPercentage;
+  if (fields.fitnessGoals !== undefined) data.fitnessGoals = fields.fitnessGoals;
+
+  await setDoc(userDoc(userId), data, { merge: true });
 }
 
 // ─── Favourites ───────────────────────────────────────────────────────────────
- 
+
 /**
  * Fetch the set of exercise IDs the user has favourited.
  * Returns a Set<string> for O(1) membership checks in the picker UI.
@@ -68,7 +68,7 @@ export async function fetchFavourites(userId) {
   snap.forEach(d => ids.add(d.id));
   return ids;
 }
- 
+
 /**
  * Toggle a favourite on or off.
  * Returns true if the exercise is now favourited, false if it was removed.
@@ -76,17 +76,17 @@ export async function fetchFavourites(userId) {
 export async function toggleFavourite(userId, exercise) {
   const ref = favouriteDoc(userId, exercise.id);
   const snap = await getDoc(ref);
- 
+
   if (snap.exists()) {
     await deleteDoc(ref);
     return false;
   } else {
     await setDoc(ref, {
       exerciseId: exercise.id,
-      name:       exercise.name,
-      muscle:     exercise.muscle,
-      category:   exercise.category,
-      createdAt:  serverTimestamp(),
+      name: exercise.name,
+      muscle: exercise.muscle,
+      category: exercise.category,
+      createdAt: serverTimestamp(),
     });
     return true;
   }
@@ -105,20 +105,20 @@ export async function fetchTemplates(userId) {
   if (snap.empty) return [];
 
   return snap.docs.map(d => {
-    const data        = d.data();
+    const data = d.data();
     const exerciseIds = data.exerciseIds ?? [];
-    const exercises   = exerciseIds
+    const exercises = exerciseIds
       .map(id => EXERCISES.find(e => e.id === id))
       .filter(Boolean);
 
     return {
-      id:          d.id,
-      user_id:     userId,
-      name:        data.name,
-      tag:         data.tag ?? '',
-      created_at:  data.createdAt?.toDate?.()?.toISOString() ?? null,
-      updated_at:  data.updatedAt?.toDate?.()?.toISOString() ?? null,
-      deleted_at:  null,
+      id: d.id,
+      user_id: userId,
+      name: data.name,
+      tag: data.tag ?? '',
+      created_at: data.createdAt?.toDate?.()?.toISOString() ?? null,
+      updated_at: data.updatedAt?.toDate?.()?.toISOString() ?? null,
+      deleted_at: null,
       sync_status: 'synced',
       exercises,
       exerciseIds,
@@ -134,18 +134,18 @@ export async function fetchTemplateById(userId, templateId) {
   if (data.deletedAt) return null;
 
   const exerciseIds = data.exerciseIds ?? [];
-  const exercises   = exerciseIds
+  const exercises = exerciseIds
     .map(id => EXERCISES.find(e => e.id === id))
     .filter(Boolean);
 
   return {
-    id:          snap.id,
-    user_id:     userId,
-    name:        data.name,
-    tag:         data.tag ?? '',
-    created_at:  data.createdAt?.toDate?.()?.toISOString() ?? null,
-    updated_at:  data.updatedAt?.toDate?.()?.toISOString() ?? null,
-    deleted_at:  null,
+    id: snap.id,
+    user_id: userId,
+    name: data.name,
+    tag: data.tag ?? '',
+    created_at: data.createdAt?.toDate?.()?.toISOString() ?? null,
+    updated_at: data.updatedAt?.toDate?.()?.toISOString() ?? null,
+    deleted_at: null,
     sync_status: 'synced',
     exercises,
     exerciseIds,
@@ -156,7 +156,7 @@ export async function templateNameExists(userId, name, excludeId = null) {
   const trimmedLower = name.trim().toLowerCase();
   if (!trimmedLower) return false;
 
-  const q    = query(templateCol(userId), where('deletedAt', '==', null));
+  const q = query(templateCol(userId), where('deletedAt', '==', null));
   const snap = await getDocs(q);
 
   return snap.docs.some(d => {
@@ -167,21 +167,21 @@ export async function templateNameExists(userId, name, excludeId = null) {
 
 export async function createTemplate(userId, id, name, tag, exerciseIds) {
   setDoc(templateDoc(userId, id), {
-    name:        name.trim(),
-    tag:         tag ?? '',
+    name: name.trim(),
+    tag: tag ?? '',
     exerciseIds: exerciseIds ?? [],
-    deletedAt:   null,
-    createdAt:   serverTimestamp(),
-    updatedAt:   serverTimestamp(),
+    deletedAt: null,
+    createdAt: serverTimestamp(),
+    updatedAt: serverTimestamp(),
   });
 }
 
 export async function updateTemplate(userId, id, name, tag, exerciseIds) {
   updateDoc(templateDoc(userId, id), {
-    name:        name.trim(),
-    tag:         tag ?? '',
+    name: name.trim(),
+    tag: tag ?? '',
     exerciseIds: exerciseIds ?? [],
-    updatedAt:   serverTimestamp(),
+    updatedAt: serverTimestamp(),
   });
 }
 
@@ -197,25 +197,25 @@ export async function deleteTemplate(userId, id) {
 export async function saveWorkout(userId, workout) {
   setDoc(workoutDoc(userId, workout.id), {
     userId,
-    name:       workout.name,
-    startedAt:  workout.startedAt,
+    name: workout.name,
+    startedAt: workout.startedAt,
     finishedAt: workout.finishedAt,
-    notes:      workout.notes ?? null,
-    deletedAt:  null,
-    createdAt:  serverTimestamp(),
-    updatedAt:  serverTimestamp(),
+    notes: workout.notes ?? null,
+    deletedAt: null,
+    createdAt: serverTimestamp(),
+    updatedAt: serverTimestamp(),
     exercises: (workout.exercises ?? []).map((ex, i) => ({
-      position:   i,
+      position: i,
       exerciseId: ex.exerciseId,
-      name:       ex.name,
-      muscle:     ex.muscle,
-      category:   ex.category,
+      name: ex.name,
+      muscle: ex.muscle,
+      category: ex.category,
       sets: (ex.sets ?? []).map((s, j) => ({
         position: j,
-        weight:   s.weight ?? 0,
-        reps:     s.reps ?? 0,
-        rpe:      s.rpe ?? null,
-        notes:    s.notes ?? null,
+        weight: s.weight ?? 0,
+        reps: s.reps ?? 0,
+        rpe: s.rpe ?? null,
+        notes: s.notes ?? null,
       })),
     })),
   });
@@ -234,26 +234,26 @@ export async function fetchWorkouts(userId) {
   return snap.docs.map(d => {
     const data = d.data();
     return {
-      id:          d.id,
-      user_id:     userId,
-      name:        data.name,
-      started_at:  data.startedAt ?? null,
+      id: d.id,
+      user_id: userId,
+      name: data.name,
+      started_at: data.startedAt ?? null,
       finished_at: data.finishedAt ?? null,
-      notes:       data.notes ?? null,
-      created_at:  data.createdAt?.toDate?.()?.toISOString() ?? null,
-      updated_at:  data.updatedAt?.toDate?.()?.toISOString() ?? null,
-      deleted_at:  null,
+      notes: data.notes ?? null,
+      created_at: data.createdAt?.toDate?.()?.toISOString() ?? null,
+      updated_at: data.updatedAt?.toDate?.()?.toISOString() ?? null,
+      deleted_at: null,
       sync_status: 'synced',
       exercises: (data.exercises ?? []).map(ex => ({
         exerciseId: ex.exerciseId,
-        name:       ex.name,
-        muscle:     ex.muscle,
-        category:   ex.category,
+        name: ex.name,
+        muscle: ex.muscle,
+        category: ex.category,
         sets: (ex.sets ?? []).map(s => ({
           weight: s.weight,
-          reps:   s.reps,
-          rpe:    s.rpe ?? null,
-          notes:  s.notes ?? null,
+          reps: s.reps,
+          rpe: s.rpe ?? null,
+          notes: s.notes ?? null,
         })),
       })),
     };
@@ -281,10 +281,10 @@ export async function fetchCustomExercises(userId) {
   return snap.docs.map(d => {
     const data = d.data();
     return {
-      id:       d.id,
-      name:     data.name,
+      id: d.id,
+      name: data.name,
       category: data.muscle, // category mirrors primary muscle for custom exercises
-      muscle:   data.muscle,
+      muscle: data.muscle,
       isCustom: true,
     };
   });
@@ -297,8 +297,8 @@ export async function fetchCustomExercises(userId) {
  */
 export async function createCustomExercise(userId, id, name, muscle) {
   await setDoc(customExerciseDoc(userId, id), {
-    name:      name.trim(),
-    muscle:    muscle.trim(),
+    name: name.trim(),
+    muscle: muscle.trim(),
     createdAt: serverTimestamp(),
     updatedAt: serverTimestamp(),
   });
@@ -330,10 +330,10 @@ export async function fetchExerciseHistory(userId, exerciseId) {
 
     for (const ex of matchingExercises) {
       history.push({
-        workoutId:   w.id,
+        workoutId: w.id,
         workoutName: w.name,
-        date:        w.finished_at ?? w.started_at,
-        sets:        ex.sets ?? [],
+        date: w.finished_at ?? w.started_at,
+        sets: ex.sets ?? [],
       });
     }
   }
@@ -348,19 +348,56 @@ export async function fetchExerciseHistory(userId, exerciseId) {
 
 export function buildExercisesFromTemplate(exercises) {
   return exercises.map(def => ({
-    id:         generateId(),
+    id: generateId(),
     exerciseId: def.id,
-    name:       def.name,
-    muscle:     def.muscle,
-    category:   def.category,
+    name: def.name,
+    muscle: def.muscle,
+    category: def.category,
     sets: [{ id: generateId(), weight: '', reps: '', rpe: null, notes: '' }],
   }));
 }
 
+// ─── Delete all user data (for account deletion) ─────────────────────────────
+
+/**
+ * Permanently removes every document inside the user's subcollections
+ * (templates, workouts, favourites, custom_exercises) and the user
+ * profile document itself.  Uses batched writes (max 500 per batch).
+ */
+export async function deleteAllUserData(userId) {
+  const subcollections = [
+    templateCol(userId),
+    workoutCol(userId),
+    favouriteCol(userId),
+    customExerciseCol(userId),
+  ];
+
+  for (const colRef of subcollections) {
+    try {
+      const snap = await getDocs(colRef);
+      // Firestore batches are limited to 500 operations
+      const chunks = [];
+      for (let i = 0; i < snap.docs.length; i += 450) {
+        chunks.push(snap.docs.slice(i, i + 450));
+      }
+      for (const chunk of chunks) {
+        const batch = writeBatch(db);
+        chunk.forEach(d => batch.delete(d.ref));
+        await batch.commit();
+      }
+    } catch (err) {
+      console.warn(`[deleteAllUserData] Failed to delete collection ${colRef.path}:`, err);
+    }
+  }
+
+  // Delete the user profile document
+  await deleteDoc(userDoc(userId));
+}
+
 // ─── Sync engine stubs (no-ops — Firestore handles this natively) ─────────────
 
-export async function getPendingSyncQueue()  { return []; }
-export async function markSynced()           { }
-export async function markConflict()         { }
+export async function getPendingSyncQueue() { return []; }
+export async function markSynced() { }
+export async function markConflict() { }
 export async function applyServerTemplates() { }
-export async function applyServerWorkouts()  { }
+export async function applyServerWorkouts() { }

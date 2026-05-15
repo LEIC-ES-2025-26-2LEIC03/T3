@@ -25,24 +25,24 @@ describe('filterExercisesByMuscleGroup Integration Tests', () => {
 
     // Wait for picker to appear and show all (by default)
     await waitFor(() => {
-      expect(getByText('Bench Press')).toBeTruthy();
+      expect(getByText('Bench press')).toBeTruthy();
     });
 
-    // Press the Push filter chip
-    fireEvent.press(getByTestId('category-chip-Push'));
+    // Press the Chest filter chip
+    fireEvent.press(getByTestId('category-chip-Chest'));
 
     // Verify ex1 is visible, ex2 is NOT
     await waitFor(() => {
-      expect(queryByText('Bench Press')).toBeTruthy();
+      expect(queryByText('Bench press')).toBeTruthy();
       expect(queryByText('Deadlift')).toBeNull();
     }, { timeout: 2000 });
 
-    // Switch to Pull
-    fireEvent.press(getByTestId('category-chip-Pull'));
+    // Switch to Back
+    fireEvent.press(getByTestId('category-chip-Back'));
 
     await waitFor(() => {
       expect(queryByText('Deadlift')).toBeTruthy();
-      expect(queryByText('Bench Press')).toBeNull();
+      expect(queryByText('Bench press')).toBeNull();
     }, { timeout: 2000 });
   });
 

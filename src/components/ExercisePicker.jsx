@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, memo } from 'react';
 import {
   Modal,
   View,
@@ -18,6 +18,7 @@ import { onAuthStateChanged } from 'firebase/auth';
 // ─── Constants ────────────────────────────────────────────────────────────────
 
 const FAVOURITES_KEY = 'Favourites';
+const EXERCISE_ROW_HEIGHT = 57; // fixed row height for getItemLayout
 
 // ─── Sub-components ───────────────────────────────────────────────────────────
 
@@ -28,6 +29,55 @@ function HeartIcon({ filled }) {
     </Text>
   );
 }
+
+/**
+ * Memoized exercise row — only re-renders when its own isFav / isToggling
+ * status changes, not when unrelated rows toggle their favourite.
+ */
+const ExerciseRow = memo(function ExerciseRow({
+  item,
+  isFav,
+  isToggling,
+  onSelect,
+  onToggleFavourite,
+}) {
+  return (
+    <TouchableOpacity
+      style={styles.exerciseRow}
+      onPress={() => onSelect(item)}
+      activeOpacity={0.7}
+    >
+      <View style={styles.exerciseInfo}>
+        <View style={styles.nameRow}>
+          <Text style={styles.exerciseName}>{item.name}</Text>
+          {item.isCustom && (
+            <View style={styles.customBadge}>
+              <Text style={styles.customBadgeText}>Custom</Text>
+            </View>
+          )}
+        </View>
+        <Text style={styles.exerciseMeta}>{item.muscle}</Text>
+      </View>
+
+      {/* Favourite button */}
+      <TouchableOpacity
+        style={[styles.favBtn, isFav && styles.favBtnActive]}
+        onPress={() => onToggleFavourite(item)}
+        hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+        disabled={isToggling}
+      >
+        {isToggling ? (
+          <ActivityIndicator size="small" color="#C8FF00" style={{ width: 22 }} />
+        ) : (
+          <HeartIcon filled={isFav} />
+        )}
+      </TouchableOpacity>
+
+      {/* Add icon */}
+      <Text style={styles.addIcon}>＋</Text>
+    </TouchableOpacity>
+  );
+});
 
 // ─── Main component ───────────────────────────────────────────────────────────
 
@@ -85,11 +135,11 @@ export default function ExercisePicker({ visible, onSelect, onClose }) {
 
   // ── Handlers ─────────────────────────────────────────────────────────────
 
-  const handleSelect = (exercise) => {
+  const handleSelect = useCallback((exercise) => {
     onSelect(exercise);
     setSearch('');
     setActiveMuscle('All');
-  };
+  }, [onSelect]);
 
   const handleToggleFavourite = useCallback(async (exercise) => {
     if (!userId || togglingId === exercise.id) return;
@@ -126,47 +176,21 @@ export default function ExercisePicker({ visible, onSelect, onClose }) {
 
   // ── Render ────────────────────────────────────────────────────────────────
 
-  const renderExercise = ({ item }) => {
-    const isFav      = favourites.has(item.id);
-    const isToggling = togglingId === item.id;
+  const renderExercise = useCallback(({ item }) => (
+    <ExerciseRow
+      item={item}
+      isFav={favourites.has(item.id)}
+      isToggling={togglingId === item.id}
+      onSelect={handleSelect}
+      onToggleFavourite={handleToggleFavourite}
+    />
+  ), [favourites, togglingId, handleSelect, handleToggleFavourite]);
 
-    return (
-      <TouchableOpacity
-        style={styles.exerciseRow}
-        onPress={() => handleSelect(item)}
-        activeOpacity={0.7}
-      >
-        <View style={styles.exerciseInfo}>
-          <View style={styles.nameRow}>
-            <Text style={styles.exerciseName}>{item.name}</Text>
-            {item.isCustom && (
-              <View style={styles.customBadge}>
-                <Text style={styles.customBadgeText}>Custom</Text>
-              </View>
-            )}
-          </View>
-          <Text style={styles.exerciseMeta}>{item.muscle}</Text>
-        </View>
-
-        {/* Favourite button */}
-        <TouchableOpacity
-          style={[styles.favBtn, isFav && styles.favBtnActive]}
-          onPress={() => handleToggleFavourite(item)}
-          hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
-          disabled={isToggling}
-        >
-          {isToggling ? (
-            <ActivityIndicator size="small" color="#C8FF00" style={{ width: 22 }} />
-          ) : (
-            <HeartIcon filled={isFav} />
-          )}
-        </TouchableOpacity>
-
-        {/* Add icon */}
-        <Text style={styles.addIcon}>＋</Text>
-      </TouchableOpacity>
-    );
-  };
+  const getItemLayout = useCallback((_, index) => ({
+    length: EXERCISE_ROW_HEIGHT,
+    offset: EXERCISE_ROW_HEIGHT * index,
+    index,
+  }), []);
 
   const isLoading = loadingFavs || loadingCustom;
 
@@ -252,6 +276,10 @@ export default function ExercisePicker({ visible, onSelect, onClose }) {
             style={styles.exerciseList}
             contentContainerStyle={styles.exerciseListContent}
             renderItem={renderExercise}
+            getItemLayout={getItemLayout}
+            initialNumToRender={20}
+            maxToRenderPerBatch={15}
+            windowSize={5}
             ListEmptyComponent={
               <View style={styles.emptyState}>
                 {activeMuscle === FAVOURITES_KEY && !search ? (
