@@ -14,8 +14,8 @@ function TabIcon({ label, focused }) {
   const icons = {
     History: '◷',
     Library: '◩',
-    Home:    '⬡',
-    Settings:'◈',
+    Home: '⬡',
+    Settings: '◈',
     Profile: '⚇',
   };
 
@@ -50,6 +50,11 @@ export default function TabNavigator() {
         options={{
           tabBarIcon: ({ focused }) => <TabIcon label="Profile" focused={focused} />,
         }}
+        listeners={({ navigation }) => ({
+          tabPress: () => {
+            navigation.navigate('ProfileTab', { screen: 'ProfileMenu' });
+          },
+        })}
       />
       <Tab.Screen
         name="LibraryTab"

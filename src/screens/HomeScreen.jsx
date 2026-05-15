@@ -1,5 +1,5 @@
 import React, { useState, useCallback, useRef } from 'react';
-import { View, Text, ScrollView, StyleSheet, ActivityIndicator, Alert } from 'react-native';
+import { View, Text, Image, ScrollView, StyleSheet, ActivityIndicator, Alert } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useFocusEffect } from '@react-navigation/native';
 import StartWorkoutActions from '../components/StartWorkoutActions';
@@ -7,9 +7,11 @@ import TemplateCard from '../components/TemplateCard';
 import { fetchTemplates, buildExercisesFromTemplate, deleteTemplate } from '../utils/firestoreDb';
 import { TEMPLATES as EXAMPLE_TEMPLATES, buildExercisesFromTemplate as buildFromStatic } from '../data/templates';
 import { auth } from '../utils/firebaseConfig';
+import { useProfile } from '../context/ProfileContext';
 
 export default function HomeScreen({ navigation }) {
   const insets = useSafeAreaInsets();
+  const { profile, refreshProfile } = useProfile();
   const today = new Date().toLocaleDateString('en-GB', {
     weekday: 'long',
     month: 'short',
@@ -19,19 +21,17 @@ export default function HomeScreen({ navigation }) {
   const userId = auth.currentUser?.uid;
   const [templates, setTemplates] = useState([]);
   const [loading, setLoading] = useState(true);
-  // Track whether this is the very first load — subsequent focus events
-  // (e.g. returning from WorkoutLogger) should refresh silently, no spinner.
   const hasLoadedOnce = useRef(false);
 
   useFocusEffect(
     useCallback(() => {
+      refreshProfile();
       if (!userId) {
         setTemplates([]);
         setLoading(false);
         return;
       }
       if (!hasLoadedOnce.current) {
-        // First mount: show spinner
         setLoading(true);
       }
       fetchTemplates(userId)
@@ -67,10 +67,10 @@ export default function HomeScreen({ navigation }) {
   };
 
   const handleDuplicateTemplate = (template) => {
-  navigation.navigate('TemplateBuilder', {
-    duplicateFromTemplateId: template.id,
-  });
-};
+    navigation.navigate('TemplateBuilder', {
+      duplicateFromTemplateId: template.id,
+    });
+  };
 
   const handleDeleteTemplate = (template) => {
     Alert.alert(
@@ -98,9 +98,17 @@ export default function HomeScreen({ navigation }) {
         <Text style={styles.logo}>
           W<Text style={styles.logoAccent}>8</Text>
         </Text>
-        <View style={styles.avatarCircle}>
-          <View style={styles.avatarInner} />
-        </View>
+
+        {/* ── Profile avatar ── */}
+        {profile.photoUrl ? (
+          <Image source={{ uri: profile.photoUrl }} style={styles.avatarCircle} />
+        ) : (
+          <View style={styles.avatarCircle}>
+            <Text style={styles.avatarInitial}>
+              {profile.displayName ? profile.displayName[0].toUpperCase() : '?'}
+            </Text>
+          </View>
+        )}
       </View>
 
       <ScrollView
@@ -192,15 +200,14 @@ const styles = StyleSheet.create({
     borderRadius: 17,
     backgroundColor: '#1E1E1E',
     borderWidth: 1.5,
-    borderColor: '#2A2A2A',
+    borderColor: '#C8FF0066',
     alignItems: 'center',
     justifyContent: 'center',
   },
-  avatarInner: {
-    width: 16,
-    height: 16,
-    borderRadius: 8,
-    backgroundColor: '#333',
+  avatarInitial: {
+    color: '#C8FF00',
+    fontSize: 14,
+    fontWeight: '700',
   },
   scroll: { flex: 1 },
   scrollContent: { paddingHorizontal: 20, paddingTop: 8 },
