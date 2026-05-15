@@ -28,16 +28,16 @@ describe('accessPremadeWorkoutRoutines Unit Tests', () => {
 
   describe('buildExercisesFromTemplate', () => {
     it('should build full exercise objects from string IDs', () => {
-      const built = buildExercisesFromTemplate(['bench_press', 'squat']);
+      const built = buildExercisesFromTemplate(['bench_press', 'back_squat']);
       expect(built).toHaveLength(2);
-      
+
       expect(built[0].exerciseId).toBe('bench_press');
-      expect(built[0].name).toBe('Bench Press');
+      expect(built[0].name).toBe('Bench press');
       expect(built[0].sets).toHaveLength(1);
       expect(built[0].sets[0].id).toBe('test-id');
 
-      expect(built[1].exerciseId).toBe('squat');
-      expect(built[1].name).toBe('Squat');
+      expect(built[1].exerciseId).toBe('back_squat');
+      expect(built[1].name).toBe('Back squat');
     });
 
     it('should filter out invalid exercise IDs', () => {
@@ -49,8 +49,8 @@ describe('accessPremadeWorkoutRoutines Unit Tests', () => {
 
   describe('getMuscleLabel', () => {
     it('should return a comma-separated list of muscle groups', () => {
-      // bench_press (Chest), squat (Quads), romanian_deadlift (Hamstrings)
-      const label = getMuscleLabel(['bench_press', 'squat', 'romanian_deadlift']);
+      // bench_press (Chest), back_squat (Quads), romanian_deadlift (Glutes, Hamstrings)
+      const label = getMuscleLabel(['bench_press', 'back_squat', 'romanian_deadlift']);
       expect(typeof label).toBe('string');
       expect(label).toContain('Chest');
       expect(label).toContain('Quads');
@@ -59,14 +59,14 @@ describe('accessPremadeWorkoutRoutines Unit Tests', () => {
 
     it('should return at most 3 muscle groups', () => {
       // 4 different muscles
-      const label = getMuscleLabel(['bench_press', 'squat', 'deadlift', 'pull_up']);
+      const label = getMuscleLabel(['bench_press', 'back_squat', 'deadlift', 'wide_grip_pull_up']);
       const parts = label.split(', ');
       expect(parts.length).toBeLessThanOrEqual(3);
     });
 
     it('should remove duplicates', () => {
-      // bench_press (Chest), incline_bench (Chest)
-      const label = getMuscleLabel(['bench_press', 'incline_bench']);
+      // bench_press (Chest), incline_bench_press (Chest)
+      const label = getMuscleLabel(['bench_press', 'incline_bench_press']);
       expect(label).toBe('Chest');
     });
   });

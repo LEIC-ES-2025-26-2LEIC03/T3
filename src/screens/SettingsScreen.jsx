@@ -1,11 +1,12 @@
 import React, { useState } from 'react';
 import { View, Text, TouchableOpacity, StyleSheet, Alert, ActivityIndicator } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { logout } from '../services/authService';
+import { logout, deleteAccount } from '../services/authService';
 
 export default function SettingsScreen() {
   const insets = useSafeAreaInsets();
   const [loggingOut, setLoggingOut] = useState(false);
+  const [deleting, setDeleting] = useState(false);
 
   const handleLogout = () => {
     Alert.alert(
@@ -32,6 +33,32 @@ export default function SettingsScreen() {
     );
   };
 
+  const handleDeleteAccount = () => {
+    Alert.alert(
+      'Delete Account',
+      'This will permanently delete your account and all your data. This action cannot be undone.',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Delete',
+          style: 'destructive',
+          onPress: async () => {
+            setDeleting(true);
+            const result = await deleteAccount();
+            if (!result.success) {
+              Alert.alert('Error', result.error);
+              setDeleting(false);
+            } else {
+              // Usually onAuthStateChanged handles this, but set back to false
+              // just in case there's a lag in state propagation.
+              setDeleting(false);
+            }
+          },
+        },
+      ]
+    );
+  };
+
   return (
     <View style={[styles.safe, { paddingTop: insets.top }]}>
       <View style={styles.topBar}>
@@ -41,22 +68,42 @@ export default function SettingsScreen() {
       <View style={styles.body}>
         {/* ── Settings items can be added here later ──────────────── */}
 
-        {/* ── Log Out button ─────────────────────────────────────── */}
-        <TouchableOpacity
-          style={styles.logoutBtn}
-          onPress={handleLogout}
-          disabled={loggingOut}
-          activeOpacity={0.7}
-        >
-          {loggingOut ? (
-            <ActivityIndicator color="#FF6B6B" />
-          ) : (
-            <>
-              <Text style={styles.logoutIcon}>⏻</Text>
-              <Text style={styles.logoutText}>Log Out</Text>
-            </>
-          )}
-        </TouchableOpacity>
+        {/* ── Account actions ─────────────────────────────────────── */}
+        <View style={styles.accountActions}>
+          {/* ── Log Out button ── */}
+          <TouchableOpacity
+            style={styles.logoutBtn}
+            onPress={handleLogout}
+            disabled={loggingOut || deleting}
+            activeOpacity={0.7}
+          >
+            {loggingOut ? (
+              <ActivityIndicator color="#FF6B6B" />
+            ) : (
+              <>
+                <Text style={styles.logoutIcon}>⏻</Text>
+                <Text style={styles.logoutText}>Log Out</Text>
+              </>
+            )}
+          </TouchableOpacity>
+
+          {/* ── Delete Account button ── */}
+          <TouchableOpacity
+            style={styles.deleteBtn}
+            onPress={handleDeleteAccount}
+            disabled={loggingOut || deleting}
+            activeOpacity={0.7}
+          >
+            {deleting ? (
+              <ActivityIndicator color="#FF4444" />
+            ) : (
+              <>
+                <Text style={styles.deleteIcon}>🗑</Text>
+                <Text style={styles.deleteText}>Delete Account</Text>
+              </>
+            )}
+          </TouchableOpacity>
+        </View>
       </View>
     </View>
   );
@@ -86,6 +133,9 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     paddingBottom: 32,
   },
+  accountActions: {
+    gap: 12,
+  },
   logoutBtn: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -105,6 +155,27 @@ const styles = StyleSheet.create({
     fontSize: 15,
     fontWeight: '700',
     color: '#FF6B6B',
+    letterSpacing: 0.3,
+  },
+  deleteBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#1A0A0A',
+    borderRadius: 14,
+    paddingVertical: 16,
+    borderWidth: 1,
+    borderColor: '#FF444433',
+    gap: 10,
+  },
+  deleteIcon: {
+    fontSize: 16,
+    color: '#FF4444',
+  },
+  deleteText: {
+    fontSize: 15,
+    fontWeight: '700',
+    color: '#FF4444',
     letterSpacing: 0.3,
   },
 });
