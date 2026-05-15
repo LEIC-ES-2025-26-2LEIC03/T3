@@ -1,35 +1,53 @@
-import { getProfile as getFsProfile, upsertProfile as upsertFsProfile } from '../utils/firestoreDb';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+
+const PROFILE_KEY_PREFIX = 'profile:';
+const METRICS_HISTORY_KEY_PREFIX = 'metricsHistory:';
 
 const VALID_UNITS = ['kg', 'lbs'];
 
+const DEFAULT_PROFILE = {
+  displayName: '',
+  photoUrl: null,
+  units: 'kg',
+  heightCm: null,
+  weightKg: null,
+  bodyFatPercentage: null,
+  fitnessGoals: '',
+};
+
+// ─── Helpers ──────────────────────────────────────────────────────────────
+
+const profileKey = (userId) => `${PROFILE_KEY_PREFIX}${userId}`;
+const metricsHistoryKey = (userId) => `${METRICS_HISTORY_KEY_PREFIX}${userId}`;
+
+const loadProfile = async (userId) => {
+  const raw = await AsyncStorage.getItem(profileKey(userId));
+  return raw ? JSON.parse(raw) : { ...DEFAULT_PROFILE };
+};
+
+const persistProfile = async (userId, profile) => {
+  await AsyncStorage.setItem(profileKey(userId), JSON.stringify(profile));
+};
+
 // ─── US-03 | Get Profile ──────────────────────────────────────────────────
 
-/**
- * Retrieve the profile for a given user from Firestore.
- */
 export const getProfile = async (userId) => {
   try {
-    const profile = await getFsProfile(userId);
+    const profile = await loadProfile(userId);
     return profile;
   } catch (e) {
-    return { user_id: userId };
+    return { user_id: userId };   // fallback shape (kept for backward compat)
   }
 };
 
 // ─── US-20 | Get User Profile ─────────────────────────────────────────────
 
-/**
- * Alias used by US-20 tests.
- */
 export const getUserProfile = async (userId) => {
   return getProfile(userId);
 };
 
 // ─── US-01 + US-03 | Update Profile Fields ────────────────────────────────
 
-/**
- * Update scalar profile fields: displayName, units.
- */
 export const updateProfile = async (userId, updates) => {
   try {
     // ── units validation ────────────────────────────────────────────────
@@ -39,17 +57,10 @@ export const updateProfile = async (userId, updates) => {
       }
     }
 
-    const current = await getFsProfile(userId);
+    const current = await loadProfile(userId);
     const updated = { ...current, ...updates };
 
-    // Map fields back to the naming expected by upsertProfile in firestoreDb.js
-    await upsertFsProfile(userId, {
-      units:             updated.units,
-      heightCm:          updated.height_cm ?? updated.heightCm,
-      weightKg:          updated.weight_kg ?? updated.weightKg,
-      bodyFatPercentage: updated.body_fat_percentage ?? updated.bodyFatPercentage,
-      fitnessGoals:      updated.fitness_goals ?? updated.fitnessGoals,
-    });
+    await persistProfile(userId, updated);
 
     return { success: true, profile: updated };
   } catch (e) {
@@ -67,7 +78,8 @@ const BODY_FAT_MIN = 1;
 const BODY_FAT_MAX = 100;
 
 /**
- * Save full profile details to Firestore.
+ * Save full profile details: height, weight, body fat, fitness goals.
+ * Also appends a snapshot to the metrics history.
  */
 export const saveUserProfile = async (userId, profileData) => {
   try {
@@ -95,16 +107,46 @@ export const saveUserProfile = async (userId, profileData) => {
       };
     }
 
-    await upsertFsProfile(userId, {
+    // load existing profile to preserve other fields
+    const current = await loadProfile(userId);
+    const updated = {
+      ...current,
       heightCm,
       weightKg,
       bodyFatPercentage: bodyFatPercentage ?? null,
       fitnessGoals: fitnessGoals ?? '',
+    };
+
+    await persistProfile(userId, updated);
+
+    // ── append snapshot to history ──────────────────────────────────────
+    await appendMetricsSnapshot(userId, {
+      weightKg,
+      bodyFatPercentage: bodyFatPercentage ?? null,
+      date: new Date().toISOString(),
     });
 
-    return { success: true };
+    return { success: true, profile: updated };
   } catch (e) {
     return { success: false, error: 'Could not save profile. Please try again.' };
   }
 };
 
+// ─── Body Metrics History ─────────────────────────────────────────────────
+
+const appendMetricsSnapshot = async (userId, snapshot) => {
+  const raw = await AsyncStorage.getItem(metricsHistoryKey(userId));
+  const history = raw ? JSON.parse(raw) : [];
+  history.push(snapshot);
+  await AsyncStorage.setItem(metricsHistoryKey(userId), JSON.stringify(history));
+};
+
+export const getMetricsHistory = async (userId) => {
+  try {
+    const raw = await AsyncStorage.getItem(metricsHistoryKey(userId));
+    const history = raw ? JSON.parse(raw) : [];
+    return [...history].reverse(); // newest first
+  } catch {
+    return [];
+  }
+};

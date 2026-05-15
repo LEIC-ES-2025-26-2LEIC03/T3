@@ -3,7 +3,7 @@ import { View, Text, TouchableOpacity, StyleSheet, Alert, ActivityIndicator } fr
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { logout, deleteAccount } from '../services/authService';
 
-export default function SettingsScreen() {
+export default function SettingsScreen({ navigation }) {
   const insets = useSafeAreaInsets();
   const [loggingOut, setLoggingOut] = useState(false);
   const [deleting, setDeleting] = useState(false);
@@ -21,9 +21,7 @@ export default function SettingsScreen() {
             setLoggingOut(true);
             try {
               await logout();
-              // onAuthStateChanged in App.jsx will automatically
-              // swap to the Login screen
-            } catch {
+            } catch (error) {
               Alert.alert('Error', 'Could not log out. Please try again.');
               setLoggingOut(false);
             }
@@ -66,7 +64,23 @@ export default function SettingsScreen() {
       </View>
 
       <View style={styles.body}>
-        {/* ── Settings items can be added here later ──────────────── */}
+        <View style={styles.menuContainer}>
+          {/* ── Edit Profile ─────────────────────────────────────────── */}
+          <TouchableOpacity
+            style={styles.menuItem}
+            onPress={() => navigation.navigate('ProfileTab', { screen: 'ProfileMenu' })}
+            activeOpacity={0.7}
+          >
+            <View style={styles.menuIconWrap}>
+              <Text style={styles.menuIcon}>✎</Text>
+            </View>
+            <View style={styles.menuContent}>
+              <Text style={styles.menuLabel}>Edit Profile</Text>
+              <Text style={styles.menuSubtitle}>Name, bio & profile picture</Text>
+            </View>
+            <Text style={styles.menuChevron}>›</Text>
+          </TouchableOpacity>
+        </View>
 
         {/* ── Account actions ─────────────────────────────────────── */}
         <View style={styles.accountActions}>
@@ -136,6 +150,32 @@ const styles = StyleSheet.create({
   accountActions: {
     gap: 12,
   },
+  menuContainer: {
+    gap: 10,
+  },
+  menuItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#141414',
+    borderRadius: 14,
+    padding: 16,
+    borderWidth: 1,
+    borderColor: '#1E1E1E',
+  },
+  menuIconWrap: {
+    width: 40,
+    height: 40,
+    borderRadius: 10,
+    backgroundColor: '#C8FF0015',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: 14,
+  },
+  menuIcon: { fontSize: 20, color: '#C8FF00' },
+  menuContent: { flex: 1, gap: 2 },
+  menuLabel: { fontSize: 15, fontWeight: '700', color: '#FFFFFF' },
+  menuSubtitle: { fontSize: 12, color: '#555', fontWeight: '500' },
+  menuChevron: { fontSize: 22, color: '#444', fontWeight: '300' },
   logoutBtn: {
     flexDirection: 'row',
     alignItems: 'center',
