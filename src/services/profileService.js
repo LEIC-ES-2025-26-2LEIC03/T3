@@ -1,6 +1,7 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
 const PROFILE_KEY_PREFIX = 'profile:';
+const METRICS_HISTORY_KEY_PREFIX = 'metricsHistory:';
 
 const VALID_UNITS = ['kg', 'lbs'];
 
@@ -17,6 +18,7 @@ const DEFAULT_PROFILE = {
 // ─── Helpers ──────────────────────────────────────────────────────────────
 
 const profileKey = (userId) => `${PROFILE_KEY_PREFIX}${userId}`;
+const metricsHistoryKey = (userId) => `${METRICS_HISTORY_KEY_PREFIX}${userId}`;
 
 const loadProfile = async (userId) => {
   const raw = await AsyncStorage.getItem(profileKey(userId));
@@ -140,6 +142,7 @@ const BODY_FAT_MAX = 100;
 
 /**
  * Save full profile details: height, weight, body fat, fitness goals.
+ * Also appends a snapshot to the metrics history.
  */
 export const saveUserProfile = async (userId, profileData) => {
   try {
@@ -177,8 +180,41 @@ export const saveUserProfile = async (userId, profileData) => {
     };
     await persistProfile(userId, updated);
 
+    // ── append snapshot to history ──────────────────────────────────────
+    await appendMetricsSnapshot(userId, {
+      weightKg,
+      bodyFatPercentage: bodyFatPercentage ?? null,
+      date: new Date().toISOString(),
+    });
+
     return { success: true, profile: updated };
   } catch (e) {
     return { success: false, error: 'Could not save profile. Please try again.' };
+  }
+};
+
+// ─── Body Metrics History ─────────────────────────────────────────────────
+
+/**
+ * Append a new body metrics snapshot to the user's history.
+ * Each snapshot: { weightKg, bodyFatPercentage, date (ISO string) }
+ */
+const appendMetricsSnapshot = async (userId, snapshot) => {
+  const raw = await AsyncStorage.getItem(metricsHistoryKey(userId));
+  const history = raw ? JSON.parse(raw) : [];
+  history.push(snapshot);
+  await AsyncStorage.setItem(metricsHistoryKey(userId), JSON.stringify(history));
+};
+
+/**
+ * Retrieve full body metrics history for a user, newest first.
+ */
+export const getMetricsHistory = async (userId) => {
+  try {
+    const raw = await AsyncStorage.getItem(metricsHistoryKey(userId));
+    const history = raw ? JSON.parse(raw) : [];
+    return [...history].reverse(); // newest first
+  } catch {
+    return [];
   }
 };
