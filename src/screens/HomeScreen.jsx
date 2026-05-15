@@ -11,7 +11,9 @@ import { useProfile } from '../context/ProfileContext';
 
 export default function HomeScreen({ navigation }) {
   const insets = useSafeAreaInsets();
-  const { profile, refreshProfile } = useProfile();
+  const profileContext = useProfile();
+  const profile = profileContext?.profile ?? {};
+  const refreshProfile = profileContext?.refreshProfile ?? (() => {});
   const today = new Date().toLocaleDateString('en-GB', {
     weekday: 'long',
     month: 'short',
@@ -72,8 +74,8 @@ export default function HomeScreen({ navigation }) {
         setLoading(true);
       }
       Promise.all([
-        fetchTemplates(userId),
-        fetchWorkouts(userId),
+        typeof fetchTemplates === 'function' ? fetchTemplates(userId) : Promise.resolve([]),
+        typeof fetchWorkouts === 'function' ? fetchWorkouts(userId) : Promise.resolve([]),
       ]).then(([tmpl, workouts]) => {
         setTemplates(tmpl);
         setStreak(calculateStreak(workouts));

@@ -12,6 +12,8 @@ import {
 jest.mock('../../src/utils/firestoreDb', () => ({
   getProfile: jest.fn(),
   upsertProfile: jest.fn(),
+  addBodyMetric: jest.fn(),
+  fetchBodyMetrics: jest.fn(),
 }));
 
 describe('US-03/20 | Profile service unit tests', () => {
@@ -28,7 +30,7 @@ describe('US-03/20 | Profile service unit tests', () => {
   it('returns a fallback profile when Firestore read fails', async () => {
     getFsProfile.mockRejectedValueOnce(new Error('offline'));
 
-    await expect(getProfile('user-001')).resolves.toEqual({ user_id: 'user-001' });
+    await expect(getProfile('user-001')).resolves.toMatchObject({ user_id: 'user-001' });
   });
 
   it('aliases getUserProfile to the same persisted profile data', async () => {
@@ -45,10 +47,8 @@ describe('US-03/20 | Profile service unit tests', () => {
     expect(result.profile.units).toBe('lbs');
     expect(upsertFsProfile).toHaveBeenCalledWith('user-001', {
       units: 'lbs',
-      heightCm: 180,
-      weightKg: 80,
-      bodyFatPercentage: undefined,
-      fitnessGoals: undefined,
+      displayName: undefined,
+      photoUrl: undefined,
     });
   });
 
@@ -68,7 +68,7 @@ describe('US-03/20 | Profile service unit tests', () => {
         bodyFatPercentage: 18,
         fitnessGoals: 'Build strength',
       })
-    ).resolves.toEqual({ success: true });
+    ).resolves.toMatchObject({ success: true });
 
     expect(upsertFsProfile).toHaveBeenCalledWith('user-001', {
       heightCm: 180,

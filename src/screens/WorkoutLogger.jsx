@@ -105,8 +105,18 @@ export default function WorkoutLogger({ navigation, route }) {
         return;
       }
 
-      saveWorkout(userId, workout);
-      navigation.navigate('HistoryTab');
+      await saveWorkout(userId, workout);
+
+      if (navigation.popToTop) {
+        navigation.popToTop();
+      }
+
+      const parentNavigation = navigation.getParent?.();
+      if (parentNavigation) {
+        parentNavigation.navigate('HistoryTab');
+      } else {
+        navigation.navigate('HistoryTab');
+      }
     } catch (e) {
       Alert.alert('Error', 'Could not save workout. Please try again.');
     }

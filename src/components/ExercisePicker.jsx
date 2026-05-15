@@ -8,6 +8,7 @@ import {
   FlatList,
   StyleSheet,
   ActivityIndicator,
+  Alert,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { EXERCISES, MUSCLES } from '../data/exercises';
@@ -19,6 +20,13 @@ import { onAuthStateChanged } from 'firebase/auth';
 
 const FAVOURITES_KEY = 'Favourites';
 const EXERCISE_ROW_HEIGHT = 57; // fixed row height for getItemLayout
+
+const favouriteErrorMessage = (error) => {
+  if (error?.code === 'permission-denied') {
+    return 'Missing Firestore permission for favourites. Please check the database rules.';
+  }
+  return 'Could not update favourite. Please try again.';
+};
 
 // ─── Sub-components ───────────────────────────────────────────────────────────
 
@@ -89,7 +97,7 @@ export default function ExercisePicker({ visible, onSelect, onClose }) {
   const [loadingFavs, setLoadingFavs]     = useState(false);
   const [customExercises, setCustomExercises] = useState([]);
   const [loadingCustom, setLoadingCustom] = useState(false);
-  const [userId, setUserId]               = useState(null);
+  const [userId, setUserId]               = useState(auth.currentUser?.uid ?? null);
 
   // ── Get real userId from Firebase Auth ────────────────────────────────────
   useEffect(() => {
@@ -105,17 +113,26 @@ export default function ExercisePicker({ visible, onSelect, onClose }) {
 
     // Load favourites
     setLoadingFavs(true);
-    fetchFavourites(userId)
-      .then(setFavourites)
-      .catch(() => {/* silently fall back to empty set */})
-      .finally(() => setLoadingFavs(false));
+    if (typeof fetchFavourites === 'function') {
+      fetchFavourites(userId)
+        .then(setFavourites)
+        .catch(() => {/* silently fall back to empty set */})
+        .finally(() => setLoadingFavs(false));
+    } else {
+      setLoadingFavs(false);
+    }
 
     // Load custom exercises
     setLoadingCustom(true);
-    fetchCustomExercises(userId)
-      .then(setCustomExercises)
-      .catch(() => setCustomExercises([]))
-      .finally(() => setLoadingCustom(false));
+    if (typeof fetchCustomExercises === 'function') {
+      fetchCustomExercises(userId)
+        .then(setCustomExercises)
+        .catch(() => setCustomExercises([]))
+        .finally(() => setLoadingCustom(false));
+    } else {
+      setCustomExercises([]);
+      setLoadingCustom(false);
+    }
   }, [visible, userId]);
 
   // ── Combined exercise list (built-in + custom) ────────────────────────────
@@ -142,7 +159,7 @@ export default function ExercisePicker({ visible, onSelect, onClose }) {
   }, [onSelect]);
 
   const handleToggleFavourite = useCallback(async (exercise) => {
-    if (!userId || togglingId === exercise.id) return;
+    if (!userId || togglingId === exercise.id || typeof toggleFavourite !== 'function') return;
 
     setTogglingId(exercise.id);
     const wasActive = favourites.has(exercise.id);
@@ -156,13 +173,14 @@ export default function ExercisePicker({ visible, onSelect, onClose }) {
 
     try {
       await toggleFavourite(userId, exercise);
-    } catch {
+    } catch (error) {
       // Roll back on error
       setFavourites(prev => {
         const next = new Set(prev);
         wasActive ? next.add(exercise.id) : next.delete(exercise.id);
         return next;
       });
+      Alert.alert('Error', favouriteErrorMessage(error));
     } finally {
       setTogglingId(null);
     }
@@ -192,7 +210,7 @@ export default function ExercisePicker({ visible, onSelect, onClose }) {
     index,
   }), []);
 
-  const isLoading = loadingFavs || loadingCustom;
+  const isLoading = loadingCustom && allExercises.length === 0;
 
   return (
     <Modal visible={visible} animationType="slide" presentationStyle="pageSheet">
