@@ -3,6 +3,7 @@ import { createStackNavigator } from '@react-navigation/stack';
 
 import ProfileScreen from '../screens/ProfileScreen';
 import BodyMetricsScreen from '../screens/BodyMetricsScreen';
+import EditProfileScreen from '../screens/EditProfileScreen';
 
 import { SPRING_TRANSITION, forSlideFromRight } from './transitions';
 
@@ -27,6 +28,7 @@ export default function ProfileNavigator() {
     >
       <Stack.Screen name="ProfileMenu" component={ProfileScreen} />
       <Stack.Screen name="BodyMetrics" component={BodyMetricsScreen} />
+      <Stack.Screen name="EditProfile" component={EditProfileScreen} />
     </Stack.Navigator>
   );
 }

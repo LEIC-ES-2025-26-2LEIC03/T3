@@ -16,6 +16,7 @@ import TabNavigator from './src/navigation/TabNavigator';
 import { auth } from './src/utils/firebaseConfig';
 import { getStayLoggedIn, logout } from './src/services/authService';
 import { getProfile, upsertProfile } from './src/utils/firestoreDb';
+import { ProfileProvider } from './src/context/ProfileContext';
 
 const Root = createStackNavigator();
 
@@ -24,14 +25,11 @@ export default function AppNavigator() {
   const [profileComplete, setProfileComplete] = useState(false);
   const [initializing, setInitializing] = useState(true);
 
-  // Ref tracks whether this is the very first auth callback (cold start).
-  // Using a ref instead of state avoids the stale-closure problem.
   const isFirstAuthCheck = useRef(true);
 
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
       if (firebaseUser) {
-        // On cold start only: if user opted out of staying logged in, sign out
         if (isFirstAuthCheck.current) {
           isFirstAuthCheck.current = false;
           const stayLoggedIn = await getStayLoggedIn();
@@ -43,11 +41,8 @@ export default function AppNavigator() {
           }
         }
 
-        // Ensure the user document exists in Firestore so subcollections
-        // (favourites, etc.) can be written to without silently failing
         await upsertProfile(firebaseUser.uid, {});
 
-        // Check if the user already completed their profile
         try {
           const profile = await getProfile(firebaseUser.uid);
           const hasProfile = profile.height_cm != null && profile.weight_kg != null;
@@ -58,7 +53,6 @@ export default function AppNavigator() {
 
         setUser(firebaseUser);
       } else {
-        // No user — reset first-check flag so next login works correctly
         isFirstAuthCheck.current = false;
         setUser(null);
         setProfileComplete(false);
@@ -69,7 +63,6 @@ export default function AppNavigator() {
     return unsubscribe;
   }, []);
 
-  // ── Loading splash ────────────────────────────────────────────────────────
   if (initializing) {
     return (
       <View style={styles.splash}>
@@ -81,40 +74,42 @@ export default function AppNavigator() {
   const isLoggedIn = user !== null;
 
   return (
-    <SafeAreaProvider initialWindowMetrics={initialWindowMetrics}>
-      <NavigationContainer theme={APP_THEME}>
-        <Root.Navigator
-          screenOptions={{
-            headerShown: false,
-            cardStyle: { backgroundColor: '#0A0A0A' },
-            cardStyleInterpolator: forFade,
-            transitionSpec: {
-              open: EASE_TRANSITION,
-              close: EASE_TRANSITION,
-            },
-          }}
-        >
-          {isLoggedIn ? (
-            profileComplete ? (
-              <>
-                <Root.Screen name="MainTabs" component={TabNavigator} />
-                <Root.Screen name="ProfileSetup" component={ProfileSetupScreen} />
-              </>
+    <ProfileProvider>
+      <SafeAreaProvider initialWindowMetrics={initialWindowMetrics}>
+        <NavigationContainer theme={APP_THEME}>
+          <Root.Navigator
+            screenOptions={{
+              headerShown: false,
+              cardStyle: { backgroundColor: '#0A0A0A' },
+              cardStyleInterpolator: forFade,
+              transitionSpec: {
+                open: EASE_TRANSITION,
+                close: EASE_TRANSITION,
+              },
+            }}
+          >
+            {isLoggedIn ? (
+              profileComplete ? (
+                <>
+                  <Root.Screen name="MainTabs" component={TabNavigator} />
+                  <Root.Screen name="ProfileSetup" component={ProfileSetupScreen} />
+                </>
+              ) : (
+                <>
+                  <Root.Screen name="ProfileSetup" component={ProfileSetupScreen} />
+                  <Root.Screen name="MainTabs" component={TabNavigator} />
+                </>
+              )
             ) : (
               <>
-                <Root.Screen name="ProfileSetup" component={ProfileSetupScreen} />
-                <Root.Screen name="MainTabs" component={TabNavigator} />
+                <Root.Screen name="Login" component={LoginScreen} />
+                <Root.Screen name="Register" component={RegisterScreen} />
               </>
-            )
-          ) : (
-            <>
-              <Root.Screen name="Login" component={LoginScreen} />
-              <Root.Screen name="Register" component={RegisterScreen} />
-            </>
-          )}
-        </Root.Navigator>
-      </NavigationContainer>
-    </SafeAreaProvider>
+            )}
+          </Root.Navigator>
+        </NavigationContainer>
+      </SafeAreaProvider>
+    </ProfileProvider>
   );
 }
 
