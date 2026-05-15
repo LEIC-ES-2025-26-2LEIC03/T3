@@ -16,6 +16,7 @@ import {
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useFocusEffect } from '@react-navigation/native';
 import { useNavigation } from '@react-navigation/native';
+import { onAuthStateChanged } from 'firebase/auth';
 import { EXERCISES, MUSCLES } from '../data/exercises';
 import {
   fetchCustomExercises,
@@ -25,9 +26,16 @@ import {
 import { auth } from '../utils/firebaseConfig';
 import { generateId } from '../utils/id';
 
+const friendlyFirestoreError = (error, fallback) => {
+  if (error?.code === 'permission-denied') {
+    return 'Missing Firestore permission for this account. Please check the database rules.';
+  }
+  return fallback;
+};
+
 export default function LibraryScreen() {
   const insets = useSafeAreaInsets();
-  const userId = auth.currentUser?.uid;
+  const [userId, setUserId] = useState(auth.currentUser?.uid ?? null);
 
   const navigation = useNavigation();
   const [search, setSearch] = useState('');
@@ -40,6 +48,15 @@ export default function LibraryScreen() {
   const [newName, setNewName] = useState('');
   const [selectedMuscles, setSelectedMuscles] = useState([]);
   const [saving, setSaving] = useState(false);
+
+  useFocusEffect(
+    useCallback(() => {
+      const unsubscribe = onAuthStateChanged(auth, user => {
+        setUserId(user?.uid ?? null);
+      });
+      return unsubscribe;
+    }, [])
+  );
 
   // ── Load custom exercises when screen is focused ─────────────────────────
   useFocusEffect(
@@ -74,6 +91,10 @@ export default function LibraryScreen() {
   // ── Save custom exercise ─────────────────────────────────────────────────
   const handleCreate = async () => {
     const trimmedName = newName.trim();
+    if (!userId) {
+      Alert.alert('Not signed in', 'Please log in again before creating an exercise.');
+      return;
+    }
     if (!trimmedName) {
       Alert.alert('Missing name', 'Please enter an exercise name.');
       return;
@@ -106,8 +127,8 @@ export default function LibraryScreen() {
       setModalVisible(false);
       setNewName('');
       setSelectedMuscles([]);
-    } catch (e) {
-      Alert.alert('Error', 'Failed to save exercise. Please try again.');
+    } catch (error) {
+      Alert.alert('Error', friendlyFirestoreError(error, 'Failed to save exercise. Please try again.'));
     } finally {
       setSaving(false);
     }
@@ -131,10 +152,14 @@ export default function LibraryScreen() {
           style: 'destructive',
           onPress: async () => {
             try {
+              if (!userId) {
+                Alert.alert('Not signed in', 'Please log in again before deleting an exercise.');
+                return;
+              }
               await deleteCustomExercise(userId, ex.id);
               setCustomExercises(prev => prev.filter(e => e.id !== ex.id));
-            } catch {
-              Alert.alert('Error', 'Failed to delete exercise.');
+            } catch (error) {
+              Alert.alert('Error', friendlyFirestoreError(error, 'Failed to delete exercise.'));
             }
           },
         },

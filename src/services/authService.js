@@ -126,6 +126,8 @@ function firebaseErrorMessage(code) {
       return 'Network error. Check your connection and try again.';
     case 'auth/requires-recent-login':
       return 'For security, please log out and log back in before deleting your account.';
+    case 'permission-denied':
+      return 'Missing Firestore permission. Please check your database rules and try again.';
     default:
       return 'Something went wrong. Please try again.';
   }

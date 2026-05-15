@@ -28,6 +28,8 @@ const favouriteCol = (userId) => collection(db, 'users', userId, 'favourites');
 const favouriteDoc = (userId, exerciseId) => doc(db, 'users', userId, 'favourites', exerciseId);
 const customExerciseCol = (userId) => collection(db, 'users', userId, 'custom_exercises');
 const customExerciseDoc = (userId, exerciseId) => doc(db, 'users', userId, 'custom_exercises', exerciseId);
+const bodyMetricCol = (userId) => collection(db, 'users', userId, 'body_metrics');
+const bodyMetricDoc = (userId, metricId) => doc(db, 'users', userId, 'body_metrics', metricId);
 
 // ─── User profile ─────────────────────────────────────────────────────────────
 
@@ -37,6 +39,8 @@ export async function getProfile(userId) {
   const d = snap.data();
   return {
     user_id: userId,
+    displayName: d.displayName ?? '',
+    photoUrl: d.photoUrl ?? null,
     units: d.units ?? 'kg',
     height_cm: d.heightCm ?? null,
     weight_kg: d.weightKg ?? null,
@@ -48,6 +52,8 @@ export async function getProfile(userId) {
 export async function upsertProfile(userId, fields) {
   const data = { updatedAt: serverTimestamp() };
   if (fields.units !== undefined) data.units = fields.units;
+  if (fields.displayName !== undefined) data.displayName = fields.displayName;
+  if (fields.photoUrl !== undefined) data.photoUrl = fields.photoUrl;
   if (fields.heightCm !== undefined) data.heightCm = fields.heightCm;
   if (fields.weightKg !== undefined) data.weightKg = fields.weightKg;
   if (fields.bodyFatPercentage !== undefined) data.bodyFatPercentage = fields.bodyFatPercentage;
@@ -63,6 +69,7 @@ export async function upsertProfile(userId, fields) {
  * Returns a Set<string> for O(1) membership checks in the picker UI.
  */
 export async function fetchFavourites(userId) {
+  if (!userId) return new Set();
   const snap = await getDocs(favouriteCol(userId));
   const ids = new Set();
   snap.forEach(d => ids.add(d.id));
@@ -74,6 +81,7 @@ export async function fetchFavourites(userId) {
  * Returns true if the exercise is now favourited, false if it was removed.
  */
 export async function toggleFavourite(userId, exercise) {
+  if (!userId) throw new Error('Cannot update favourites without a signed-in user.');
   const ref = favouriteDoc(userId, exercise.id);
   const snap = await getDoc(ref);
 
@@ -296,6 +304,7 @@ export async function fetchCustomExercises(userId) {
  * `name` is the exercise name; `muscle` is a comma-separated muscle string.
  */
 export async function createCustomExercise(userId, id, name, muscle) {
+  if (!userId) throw new Error('Cannot create a custom exercise without a signed-in user.');
   await setDoc(customExerciseDoc(userId, id), {
     name: name.trim(),
     muscle: muscle.trim(),
@@ -309,7 +318,44 @@ export async function createCustomExercise(userId, id, name, muscle) {
  * data inline so deletion only affects future picks, not history).
  */
 export async function deleteCustomExercise(userId, exerciseId) {
+  if (!userId) throw new Error('Cannot delete a custom exercise without a signed-in user.');
   await deleteDoc(customExerciseDoc(userId, exerciseId));
+}
+
+// â”€â”€â”€ Body metrics history â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+
+export async function addBodyMetric(userId, metric) {
+  if (!userId) throw new Error('Cannot save body metrics without a signed-in user.');
+  const id = metric.id ?? generateId();
+  const recordedAt = metric.recordedAt ?? new Date().toISOString();
+
+  await setDoc(bodyMetricDoc(userId, id), {
+    weightKg: metric.weightKg ?? null,
+    bodyFatPercentage: metric.bodyFatPercentage ?? null,
+    recordedAt,
+    createdAt: serverTimestamp(),
+  });
+
+  return { id, recordedAt };
+}
+
+export async function fetchBodyMetrics(userId) {
+  if (!userId) return [];
+
+  const q = query(bodyMetricCol(userId), orderBy('recordedAt', 'desc'));
+  const snap = await getDocs(q);
+  if (snap.empty) return [];
+
+  return snap.docs.map(d => {
+    const data = d.data();
+    return {
+      id: d.id,
+      weightKg: data.weightKg ?? null,
+      bodyFatPercentage: data.bodyFatPercentage ?? null,
+      recordedAt: data.recordedAt ?? null,
+      date: data.recordedAt ?? null,
+    };
+  });
 }
 
 // ─── Exercise history ─────────────────────────────────────────────────────────
@@ -365,12 +411,17 @@ export function buildExercisesFromTemplate(exercises) {
  * profile document itself.  Uses batched writes (max 500 per batch).
  */
 export async function deleteAllUserData(userId) {
+  if (!userId) throw new Error('Cannot delete user data without a signed-in user.');
+
   const subcollections = [
     templateCol(userId),
     workoutCol(userId),
     favouriteCol(userId),
     customExerciseCol(userId),
+    bodyMetricCol(userId),
   ];
+
+  const failures = [];
 
   for (const colRef of subcollections) {
     try {
@@ -387,7 +438,15 @@ export async function deleteAllUserData(userId) {
       }
     } catch (err) {
       console.warn(`[deleteAllUserData] Failed to delete collection ${colRef.path}:`, err);
+      failures.push(err);
     }
+  }
+
+  if (failures.length > 0) {
+    const first = failures[0];
+    const error = new Error(first?.message ?? 'Could not delete all user data.');
+    error.code = first?.code;
+    throw error;
   }
 
   // Delete the user profile document

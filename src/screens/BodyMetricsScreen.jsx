@@ -93,12 +93,18 @@ export default function BodyMetricsScreen({ navigation }) {
         return;
       }
 
-      // Refresh history after saving
-      const records = await getMetricsHistory(USER_ID);
-      setHistory(records);
+      // History is useful, but a refresh failure should not turn a completed
+      // save into an error for the user.
+      getMetricsHistory(USER_ID)
+        .then(setHistory)
+        .catch(() => {});
 
       setSuccessMsg('Body metrics saved!');
-      setTimeout(() => setSuccessMsg(''), 2500);
+      if (navigation.goBack) {
+        navigation.goBack();
+      } else {
+        setTimeout(() => setSuccessMsg(''), 2500);
+      }
     } catch {
       Alert.alert('Error', 'Something went wrong. Please try again.');
     } finally {

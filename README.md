@@ -399,6 +399,7 @@ You can find below information and references related with the project managemen
 
 **End**
 
+![](docs/sprint_planning/end_sprint2.png)
 
 #### Retrospective
 
@@ -422,7 +423,7 @@ You can find below information and references related with the project managemen
 
 #### Review
 
-- Major improvements in planning in relation to sprint 1, wich allowed for more and better work to be done. 
+- Major improvements in planning in relation to sprint 1, which allowed for more and better work to be done. 
 
 ### Features Added
 

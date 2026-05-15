@@ -4,6 +4,8 @@ import { getProfile as getFsProfile, upsertProfile } from '../../src/utils/fires
 jest.mock('../../src/utils/firestoreDb', () => ({
   getProfile: jest.fn(),
   upsertProfile: jest.fn(),
+  addBodyMetric: jest.fn(),
+  fetchBodyMetrics: jest.fn(),
 }));
 
 describe('US-20 | Enter User Profile Details acceptance tests', () => {
@@ -48,9 +50,9 @@ describe('US-20 | Enter User Profile Details acceptance tests', () => {
 
   it('retrieves the persisted user profile later', async () => {
     await expect(getUserProfile('user-001')).resolves.toMatchObject({
-      height_cm: 180,
-      weight_kg: 78,
-      fitness_goals: 'Build strength',
+      heightCm: 180,
+      weightKg: 78,
+      fitnessGoals: 'Build strength',
     });
   });
 });
