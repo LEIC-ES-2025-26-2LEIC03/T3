@@ -21,3 +21,16 @@
 ### Changed
 - Refactored main application code into separate, organized files
 - Enhanced overall UI/UX with upgraded navigation design and smoother screen transitions
+
+
+## v2.0.0 — Sprint 2
+
+### Added
+- Cloud data synchronization by migrating from local SQLite to Firebase Firestore
+- User authentication and robust session management via Firebase Auth
+- Complete account deletion flow with secure user data cleanup
+- Body metrics logging and progress tracking
+- User profile configuration and personalized setup flow
+- Workout streak tracking to encourage consistency
+- Ability to favorite exercises for quicker access
+- Custom exercise creation in the exercise library
