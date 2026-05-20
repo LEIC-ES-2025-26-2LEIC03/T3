@@ -29,7 +29,7 @@ function formatDate(isoString) {
 }
 
 /** Compute personal records from the full history. */
-function computeRecords(history) {
+export function computeRecords(history) {
   let bestWeight = 0;
   let bestVolume = 0;      // single-set volume (weight × reps)
   let bestSetStr = null;
@@ -69,7 +69,7 @@ function computeRecords(history) {
 }
 
 /** Compute chart data from the full history. */
-function computeChartData(history) {
+export function computeChartData(history) {
   const sortedHistory = [...history].sort((a, b) => new Date(a.date) - new Date(b.date));
 
   const labels = [];
