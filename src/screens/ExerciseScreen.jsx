@@ -11,6 +11,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useFocusEffect } from '@react-navigation/native';
 import { fetchExerciseHistory } from '../utils/firestoreDb';
 import { auth } from '../utils/firebaseConfig';
+import { EXERCISE_INSTRUCTIONS } from '../data/instructions';
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -139,6 +140,7 @@ export default function ExerciseHistoryScreen({ navigation, route }) {
   const { exercise } = route.params;
   const insets = useSafeAreaInsets();
 
+  const [activeTab, setActiveTab] = useState('History');
   const [history, setHistory] = useState([]);
   const [loading, setLoading] = useState(true);
 
@@ -172,43 +174,107 @@ export default function ExerciseHistoryScreen({ navigation, route }) {
         <Text style={styles.exerciseMuscle}>{exercise.muscle}</Text>
       </View>
 
-      {loading ? (
-        <View style={styles.centered}>
-          <ActivityIndicator color="#C8FF00" />
-        </View>
-      ) : history.length === 0 ? (
-        <View style={styles.centered}>
-          <Text style={styles.emptyIcon}>📊</Text>
-          <Text style={styles.emptyHeading}>No history yet</Text>
-          <Text style={styles.emptySub}>
-            Complete a workout with this exercise and your history will appear here.
-          </Text>
-        </View>
-      ) : (
-        <ScrollView
-          style={styles.scroll}
-          contentContainerStyle={styles.scrollContent}
-          showsVerticalScrollIndicator={false}
+      {/* ── Tabs ── */}
+      <View style={styles.tabsContainer}>
+        <TouchableOpacity
+          style={[styles.tab, activeTab === 'About' && styles.activeTab]}
+          onPress={() => setActiveTab('About')}
         >
-          {/* ── Personal Records ── */}
-          <Text style={styles.sectionTitle}>Personal Records</Text>
-          <View style={styles.recordsRow}>
-            <RecordCard label="Best Weight" value={records.bestWeight} unit="kg" />
-            <RecordCard label="Est. 1RM" value={records.est1RM} unit="kg" />
-          </View>
-          <View style={styles.recordsRow}>
-            <RecordCard label="Best Set" value={records.bestSetStr ?? '—'} />
-            <RecordCard label="Sessions" value={records.totalSessions} />
-          </View>
+          <Text style={[styles.tabText, activeTab === 'About' && styles.activeTabText]}>About</Text>
+        </TouchableOpacity>
+        <TouchableOpacity
+          style={[styles.tab, activeTab === 'History' && styles.activeTab]}
+          onPress={() => setActiveTab('History')}
+        >
+          <Text style={[styles.tabText, activeTab === 'History' && styles.activeTabText]}>History</Text>
+        </TouchableOpacity>
+      </View>
 
-          {/* ── History ── */}
-          <Text style={[styles.sectionTitle, { marginTop: 28 }]}>History</Text>
-          {history.map((entry, i) => (
-            <HistoryEntry key={`${entry.workoutId}-${i}`} entry={entry} />
-          ))}
+      {/* ── Content ── */}
+      {activeTab === 'About' ? (
+        <ScrollView style={styles.scroll} contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
+          {(() => {
+            const instructions = EXERCISE_INSTRUCTIONS[exercise.id];
+            if (!instructions) {
+              return (
+                <View style={styles.centered}>
+                  <Text style={styles.emptyIcon}>📝</Text>
+                  <Text style={styles.emptyHeading}>No instructions</Text>
+                  <Text style={styles.emptySub}>We don't have detailed instructions for this exercise yet.</Text>
+                </View>
+              );
+            }
+            return (
+              <View style={styles.aboutContainer}>
+                <Text style={styles.sectionTitle}>Instructions</Text>
+                {instructions.steps.map((step, idx) => (
+                  <View key={idx} style={styles.infoCard}>
+                    <View style={styles.infoIconContainer}>
+                      <Text style={styles.infoIconText}>{idx + 1}</Text>
+                    </View>
+                    <Text style={styles.infoTextContent}>{step}</Text>
+                  </View>
+                ))}
 
-          <View style={{ height: 40 }} />
+                {instructions.tips && instructions.tips.length > 0 && (
+                  <>
+                    <Text style={[styles.sectionTitle, { marginTop: 24 }]}>Tips</Text>
+                    {instructions.tips.map((tip, idx) => (
+                      <View key={idx} style={styles.infoCard}>
+                        <View style={styles.infoIconContainer}>
+                          <Text style={styles.infoIconText}>💡</Text>
+                        </View>
+                        <Text style={styles.infoTextContent}>{tip}</Text>
+                      </View>
+                    ))}
+                  </>
+                )}
+                <View style={{ height: 40 }} />
+              </View>
+            );
+          })()}
         </ScrollView>
+      ) : (
+        <>
+          {loading ? (
+            <View style={styles.centered}>
+              <ActivityIndicator color="#C8FF00" />
+            </View>
+          ) : history.length === 0 ? (
+            <View style={styles.centered}>
+              <Text style={styles.emptyIcon}>📊</Text>
+              <Text style={styles.emptyHeading}>No history yet</Text>
+              <Text style={styles.emptySub}>
+                Complete a workout with this exercise and your history will appear here.
+              </Text>
+            </View>
+          ) : (
+            <ScrollView
+              style={styles.scroll}
+              contentContainerStyle={styles.scrollContent}
+              showsVerticalScrollIndicator={false}
+            >
+              {/* ── Personal Records ── */}
+              <Text style={styles.sectionTitle}>Personal Records</Text>
+              <View style={styles.recordsRow}>
+                <RecordCard label="Best Weight" value={records.bestWeight} unit="kg" />
+                <RecordCard label="Est. 1RM" value={records.est1RM} unit="kg" />
+              </View>
+              <View style={styles.recordsRow}>
+                <RecordCard label="Best Set" value={records.bestSetStr ?? '—'} />
+                <RecordCard label="Sessions" value={records.totalSessions} />
+              </View>
+
+              {/* ── History ── */}
+              <Text style={[styles.sectionTitle, { marginTop: 28 }]}>History</Text>
+              {history.map((entry, i) => (
+                <HistoryEntry key={`${entry.workoutId}-${i}`} entry={entry} />
+              ))}
+
+              <View style={{ height: 40 }} />
+            </ScrollView>
+          )}
+        </>
       )}
     </View>
   );
@@ -261,6 +327,33 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     letterSpacing: 0.4,
     marginTop: 4,
+  },
+
+  // Tabs
+  tabsContainer: {
+    flexDirection: 'row',
+    marginHorizontal: 16,
+    marginTop: 16,
+    backgroundColor: '#1A1A1A',
+    borderRadius: 8,
+    padding: 4,
+  },
+  tab: {
+    flex: 1,
+    paddingVertical: 8,
+    alignItems: 'center',
+    borderRadius: 6,
+  },
+  activeTab: {
+    backgroundColor: '#333',
+  },
+  tabText: {
+    color: '#888',
+    fontSize: 14,
+    fontWeight: '600',
+  },
+  activeTabText: {
+    color: '#FFF',
   },
 
   // Loading / empty
@@ -423,5 +516,42 @@ const styles = StyleSheet.create({
   },
   setRpe: {
     color: '#C8FF00',
+  },
+
+  // Instructions & Tips
+  aboutContainer: {
+    paddingTop: 8,
+  },
+  infoCard: {
+    flexDirection: 'row',
+    backgroundColor: '#141414',
+    borderRadius: 12,
+    padding: 16,
+    marginBottom: 10,
+    borderWidth: 1,
+    borderColor: '#1E1E1E',
+  },
+  infoIconContainer: {
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    backgroundColor: 'rgba(200,255,0,0.08)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: 14,
+    borderWidth: 1,
+    borderColor: 'rgba(200,255,0,0.15)',
+  },
+  infoIconText: {
+    color: '#C8FF00',
+    fontSize: 13,
+    fontWeight: '800',
+  },
+  infoTextContent: {
+    flex: 1,
+    color: '#DDDDDD',
+    fontSize: 15,
+    lineHeight: 22,
+    fontWeight: '500',
   },
 });
