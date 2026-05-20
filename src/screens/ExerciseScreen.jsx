@@ -293,34 +293,31 @@ export default function ExerciseHistoryScreen({ navigation, route }) {
           })()}
         </ScrollView>
       ) : activeTab === 'Graphics' ? (
-        <ScrollView style={styles.scroll} contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
-          {(() => {
-            if (history.length < 2) {
-              return (
-                <View style={[styles.centered, { marginTop: 40 }]}>
-                  <Text style={styles.emptyIcon}>📈</Text>
-                  <Text style={styles.emptyHeading}>Not enough data</Text>
-                  <Text style={styles.emptySub}>
-                    Complete at least two workouts with this exercise to see your progress charts.
-                  </Text>
-                </View>
-              );
-            }
+        history.length < 2 ? (
+          <View style={styles.centered}>
+            <Text style={styles.emptyIcon}>📈</Text>
+            <Text style={styles.emptyHeading}>Not enough data</Text>
+            <Text style={styles.emptySub}>
+              Complete at least two workouts with this exercise to see your progress charts.
+            </Text>
+          </View>
+        ) : (
+          <ScrollView style={styles.scroll} contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
+            {(() => {
+              const chartData = computeChartData(history);
+              const screenWidth = Dimensions.get('window').width;
+              const chartWidth = screenWidth - 64;
 
-            const chartData = computeChartData(history);
-            const screenWidth = Dimensions.get('window').width;
-            const chartWidth = screenWidth - 64;
-
-            const renderChart = (title, data, yAxisSuffix = '') => {
-              if (!data || data.length === 0) return null;
-              
-              const labelStep = Math.max(1, Math.floor(chartData.labels.length / 6));
-              const sparseLabels = chartData.labels.map((l, i) => {
-                if (i % labelStep === 0) {
-                  return i === 0 ? `   ${l}` : l;
-                }
-                return '';
-              });
+              const renderChart = (title, data, yAxisSuffix = '') => {
+                if (!data || data.length === 0) return null;
+                
+                const labelStep = Math.max(1, Math.floor(chartData.labels.length / 6));
+                const sparseLabels = chartData.labels.map((l, i) => {
+                  if (i % labelStep === 0) {
+                    return i === 0 ? `   ${l}` : l;
+                  }
+                  return '';
+                });
 
               // Compute Y labels manually for the overlay to prevent line overlap
               const min = Math.min(...data);
@@ -397,6 +394,7 @@ export default function ExerciseHistoryScreen({ navigation, route }) {
             );
           })()}
         </ScrollView>
+        )
       ) : (
         <>
           {loading ? (
