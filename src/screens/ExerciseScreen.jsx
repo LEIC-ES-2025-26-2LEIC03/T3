@@ -6,9 +6,11 @@ import {
   StyleSheet,
   ActivityIndicator,
   TouchableOpacity,
+  Dimensions,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useFocusEffect } from '@react-navigation/native';
+import { LineChart } from 'react-native-chart-kit';
 import { fetchExerciseHistory } from '../utils/firestoreDb';
 import { auth } from '../utils/firebaseConfig';
 import { EXERCISE_INSTRUCTIONS } from '../data/instructions';
@@ -64,6 +66,56 @@ function computeRecords(history) {
     totalSets,
     totalSessions: history.length,
   };
+}
+
+/** Compute chart data from the full history. */
+function computeChartData(history) {
+  const sortedHistory = [...history].sort((a, b) => new Date(a.date) - new Date(b.date));
+
+  const labels = [];
+  const est1RMData = [];
+  const maxWeightData = [];
+  const totalVolumeData = [];
+  const maxRepsData = [];
+
+  for (const entry of sortedHistory) {
+    let bestWeight = 0;
+    let maxReps = 0;
+    let totalVolume = 0;
+    let maxEst1RM = 0;
+
+    for (const s of entry.sets) {
+      const w = s.weight ?? 0;
+      const r = s.reps ?? 0;
+      
+      if (w > bestWeight) bestWeight = w;
+      if (r > maxReps) maxReps = r;
+      
+      totalVolume += (w * r);
+
+      if (r > 0 && r <= 30 && w > 0) {
+        const e1rm = w * (36 / (37 - r));
+        if (e1rm > maxEst1RM) maxEst1RM = e1rm;
+      }
+    }
+
+    const dateObj = new Date(entry.date);
+    const label = `${dateObj.getDate()}/${dateObj.getMonth() + 1}`;
+    
+    labels.push(label);
+    est1RMData.push(Math.round(maxEst1RM * 10) / 10 || 0);
+    maxWeightData.push(bestWeight);
+    totalVolumeData.push(totalVolume);
+    maxRepsData.push(maxReps);
+  }
+
+  if (est1RMData.length === 0) est1RMData.push(0);
+  if (maxWeightData.length === 0) maxWeightData.push(0);
+  if (totalVolumeData.length === 0) totalVolumeData.push(0);
+  if (maxRepsData.length === 0) maxRepsData.push(0);
+  if (labels.length === 0) labels.push('');
+
+  return { labels, est1RMData, maxWeightData, totalVolumeData, maxRepsData };
 }
 
 // ─── Sub-components ───────────────────────────────────────────────────────────
@@ -188,6 +240,12 @@ export default function ExerciseHistoryScreen({ navigation, route }) {
         >
           <Text style={[styles.tabText, activeTab === 'History' && styles.activeTabText]}>History</Text>
         </TouchableOpacity>
+        <TouchableOpacity
+          style={[styles.tab, activeTab === 'Graphics' && styles.activeTab]}
+          onPress={() => setActiveTab('Graphics')}
+        >
+          <Text style={[styles.tabText, activeTab === 'Graphics' && styles.activeTabText]}>Graphics</Text>
+        </TouchableOpacity>
       </View>
 
       {/* ── Content ── */}
@@ -229,6 +287,111 @@ export default function ExerciseHistoryScreen({ navigation, route }) {
                     ))}
                   </>
                 )}
+                <View style={{ height: 40 }} />
+              </View>
+            );
+          })()}
+        </ScrollView>
+      ) : activeTab === 'Graphics' ? (
+        <ScrollView style={styles.scroll} contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
+          {(() => {
+            if (history.length < 2) {
+              return (
+                <View style={[styles.centered, { marginTop: 40 }]}>
+                  <Text style={styles.emptyIcon}>📈</Text>
+                  <Text style={styles.emptyHeading}>Not enough data</Text>
+                  <Text style={styles.emptySub}>
+                    Complete at least two workouts with this exercise to see your progress charts.
+                  </Text>
+                </View>
+              );
+            }
+
+            const chartData = computeChartData(history);
+            const screenWidth = Dimensions.get('window').width;
+            const chartWidth = screenWidth - 64;
+
+            const renderChart = (title, data, yAxisSuffix = '') => {
+              if (!data || data.length === 0) return null;
+              
+              const labelStep = Math.max(1, Math.floor(chartData.labels.length / 6));
+              const sparseLabels = chartData.labels.map((l, i) => {
+                if (i % labelStep === 0) {
+                  return i === 0 ? `   ${l}` : l;
+                }
+                return '';
+              });
+
+              // Compute Y labels manually for the overlay to prevent line overlap
+              const min = Math.min(...data);
+              const max = Math.max(...data);
+              const range = max === min ? 1 : (max - min);
+              const decimalPlaces = title.includes('Repetitions') ? 0 : 0;
+              const yLabels = [
+                max,
+                min + range * 0.75,
+                min + range * 0.5,
+                min + range * 0.25,
+                min
+              ];
+
+              return (
+                <View style={styles.chartWrapper} key={title}>
+                  <Text style={styles.chartTitle}>{title}</Text>
+                  <View style={styles.chartCard}>
+                    <LineChart
+                      data={{
+                        labels: sparseLabels,
+                        datasets: [{ data: data }]
+                      }}
+                      width={chartWidth}
+                      height={200}
+                      withInnerLines={false}
+                      withOuterLines={false}
+                      formatYLabel={() => ""} // Hide default Y labels
+                      chartConfig={{
+                        backgroundColor: '#141414',
+                        backgroundGradientFrom: '#141414',
+                        backgroundGradientTo: '#141414',
+                        color: (opacity = 1) => `rgba(200, 255, 0, ${opacity})`,
+                        labelColor: (opacity = 1) => `rgba(230, 230, 230, ${opacity})`,
+                        style: { borderRadius: 12 },
+                        propsForDots: { r: '3', strokeWidth: '2', stroke: '#141414' },
+                        propsForLabels: { fontSize: 10, fontWeight: 'bold' }
+                      }}
+                      bezier
+                      style={{ paddingRight: 20 }} // Start chart more to the left
+                    />
+                    
+                    {/* Custom right Y-axis overlay to hide the line crossing over */}
+                    <View style={{
+                      position: 'absolute',
+                      right: 1, // inside border
+                      top: 32, // align with chart grid top
+                      bottom: 48, // align with chart grid bottom
+                      width: 55,
+                      backgroundColor: '#141414', // exact background match
+                      justifyContent: 'space-between',
+                      alignItems: 'flex-end',
+                      paddingRight: 16,
+                    }}>
+                      {yLabels.map((val, i) => (
+                        <Text key={i} style={{ color: 'rgba(230, 230, 230, 1)', fontSize: 10, fontWeight: 'bold' }}>
+                          {val.toFixed(decimalPlaces)}{yAxisSuffix}
+                        </Text>
+                      ))}
+                    </View>
+                  </View>
+                </View>
+              );
+            };
+
+            return (
+              <View>
+                {renderChart('Best Series (Est. 1RM)', chartData.est1RMData, ' kg')}
+                {renderChart('Best Series (Max Weight)', chartData.maxWeightData, ' kg')}
+                {renderChart('Total Volume', chartData.totalVolumeData, ' kg')}
+                {renderChart('Best Series (Repetitions)', chartData.maxRepsData, '')}
                 <View style={{ height: 40 }} />
               </View>
             );
@@ -553,5 +716,29 @@ const styles = StyleSheet.create({
     fontSize: 15,
     lineHeight: 22,
     fontWeight: '500',
+  },
+
+  // Charts
+  chartWrapper: {
+    marginBottom: 20,
+  },
+  chartTitle: {
+    fontSize: 13,
+    fontWeight: '700',
+    color: '#888',
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+    marginBottom: 8,
+    marginLeft: 4,
+  },
+  chartCard: {
+    backgroundColor: '#141414',
+    borderRadius: 14,
+    paddingVertical: 16,
+    paddingHorizontal: 16,
+    borderWidth: 1,
+    borderColor: '#222',
+    alignItems: 'center',
+    justifyContent: 'center',
   },
 });
