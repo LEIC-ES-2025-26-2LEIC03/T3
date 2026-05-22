@@ -10,6 +10,9 @@ export default function ExerciseCard({ exercise, onUpdate, onRemove }) {
       id: generateId(),
       weight: lastSet?.weight ?? '',
       reps: lastSet?.reps ?? '',
+      rpe: lastSet?.rpe ?? null,
+      notes: lastSet?.notes ?? '',
+      warmUp: false,
     };
     onUpdate({ ...exercise, sets: [...exercise.sets, newSet] });
   };
@@ -19,6 +22,26 @@ export default function ExerciseCard({ exercise, onUpdate, onRemove }) {
       ...exercise,
       sets: exercise.sets.map(s => (s.id === setId ? updatedSet : s)),
     });
+  };
+
+  const toggleWarmUp = (setId) => {
+    onUpdate({
+      ...exercise,
+      sets: exercise.sets.map((s) =>
+        s.id === setId ? { ...s, warmUp: !s.warmUp } : s
+      ),
+    });
+  };
+
+  const getSetLabel = (index) => {
+    const currentSet = exercise.sets[index];
+    if (currentSet.warmUp) {
+      return 'W';
+    }
+
+    return (
+      exercise.sets.slice(0, index).filter((s) => !s.warmUp).length + 1
+    );
   };
 
   const deleteSet = (setId) => {
@@ -55,8 +78,9 @@ export default function ExerciseCard({ exercise, onUpdate, onRemove }) {
         <SetRow
           key={set.id}
           set={set}
-          setNumber={index + 1}
+          setNumber={getSetLabel(index)}
           onChange={(updated) => updateSet(set.id, updated)}
+          onToggleWarmUp={() => toggleWarmUp(set.id)}
           onDelete={() => deleteSet(set.id)}
         />
       ))}
