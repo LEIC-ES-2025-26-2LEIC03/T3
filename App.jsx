@@ -18,6 +18,7 @@ import { auth } from './src/utils/firebaseConfig';
 import { getStayLoggedIn, logout } from './src/services/authService';
 import { getProfile, upsertProfile } from './src/utils/firestoreDb';
 import { ProfileProvider } from './src/context/ProfileContext';
+import { startSyncOnReconnect } from './src/services/syncService';
 
 const Root = createStackNavigator();
 
@@ -63,6 +64,11 @@ export default function AppNavigator() {
 
     return unsubscribe;
   }, []);
+
+  useEffect(() => {
+    if (!user?.uid) return undefined;
+    return startSyncOnReconnect(user.uid);
+  }, [user?.uid]);
 
   if (initializing) {
     return (
