@@ -14,6 +14,7 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { login, setStayLoggedIn } from '../services/authService';
 
+
 export default function LoginScreen({ navigation }) {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -114,6 +115,15 @@ export default function LoginScreen({ navigation }) {
               <Text style={styles.eyeIcon}>{showPassword ? '◉' : '◎'}</Text>
             </TouchableOpacity>
           </View>
+
+          {/* ── Forgot password ────────────────────────────────────── */}
+          <TouchableOpacity
+            style={styles.forgotRow}
+            onPress={() => navigation.navigate('ForgotPassword')}
+            hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+          >
+            <Text style={styles.forgotText}>Forgot password?</Text>
+          </TouchableOpacity>
 
           {/* ── Stay Logged In ─────────────────────────────────────── */}
           <View style={styles.stayLoggedRow}>
@@ -295,6 +305,16 @@ const styles = StyleSheet.create({
     fontSize: 15,
     fontWeight: '800',
     letterSpacing: 0.5,
+  },
+  forgotRow: {
+    alignSelf: 'flex-end',
+    marginTop: -8,
+    marginBottom: 20,
+  },
+  forgotText: {
+    color: '#C8FF00',
+    fontSize: 13,
+    fontWeight: '600',
   },
   footerRow: {
     flexDirection: 'row',
