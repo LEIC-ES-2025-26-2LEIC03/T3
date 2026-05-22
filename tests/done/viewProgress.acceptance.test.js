@@ -1,6 +1,6 @@
 import React from 'react';
 import { render, waitFor } from '@testing-library/react-native';
-import ExerciseHistoryScreen from '../../src/screens/ExerciseHistoryScreen';
+import ExerciseHistoryScreen from '../../src/screens/ExerciseScreen';
 import { fetchExerciseHistory } from '../../src/utils/firestoreDb';
 
 jest.mock('@react-navigation/native', () => ({
