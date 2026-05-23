@@ -47,6 +47,10 @@ export default function LibraryScreen() {
   const [modalVisible, setModalVisible] = useState(false);
   const [newName, setNewName] = useState('');
   const [selectedMuscles, setSelectedMuscles] = useState([]);
+  const [newSteps, setNewSteps] = useState([]);
+  const [newTips, setNewTips] = useState([]);
+  const [stepDraft, setStepDraft] = useState('');
+  const [tipDraft, setTipDraft] = useState('');
   const [saving, setSaving] = useState(false);
 
   useFocusEffect(
@@ -115,18 +119,24 @@ export default function LibraryScreen() {
     try {
       const id = generateId();
       const muscleString = selectedMuscles.join(', ');
-      await createCustomExercise(userId, id, trimmedName, muscleString);
+      await createCustomExercise(userId, id, trimmedName, muscleString, newSteps, newTips);
       const newEx = {
         id,
         name: trimmedName,
         category: selectedMuscles[0],
         muscle: muscleString,
         isCustom: true,
+        steps: newSteps,
+        tips: newTips,
       };
       setCustomExercises(prev => [...prev, newEx]);
       setModalVisible(false);
       setNewName('');
       setSelectedMuscles([]);
+      setNewSteps([]);
+      setNewTips([]);
+      setStepDraft('');
+      setTipDraft('');
     } catch (error) {
       Alert.alert('Error', friendlyFirestoreError(error, 'Failed to save exercise. Please try again.'));
     } finally {
@@ -138,6 +148,32 @@ export default function LibraryScreen() {
     setModalVisible(false);
     setNewName('');
     setSelectedMuscles([]);
+    setNewSteps([]);
+    setNewTips([]);
+    setStepDraft('');
+    setTipDraft('');
+  };
+
+  const handleAddStep = () => {
+    const trimmed = stepDraft.trim();
+    if (trimmed.length === 0) return;
+    setNewSteps(prev => [...prev, trimmed]);
+    setStepDraft('');
+  };
+
+  const handleRemoveStep = (index) => {
+    setNewSteps(prev => prev.filter((_, idx) => idx !== index));
+  };
+
+  const handleAddTip = () => {
+    const trimmed = tipDraft.trim();
+    if (trimmed.length === 0) return;
+    setNewTips(prev => [...prev, trimmed]);
+    setTipDraft('');
+  };
+
+  const handleRemoveTip = (index) => {
+    setNewTips(prev => prev.filter((_, idx) => idx !== index));
   };
 
   // ── Delete custom exercise ───────────────────────────────────────────────
@@ -324,12 +360,67 @@ export default function LibraryScreen() {
               })}
             </View>
 
+            {/* Steps */}
+            <Text style={styles.fieldLabel}>Instruction Steps</Text>
+            <Text style={styles.fieldHint}>List one or more execution steps for the exercise.</Text>
+            {newSteps.map((step, index) => (
+              <View key={`${step}-${index}`} style={styles.listRow}>
+                <Text style={styles.listRowText}>{index + 1}. {step}</Text>
+                <TouchableOpacity onPress={() => handleRemoveStep(index)} style={styles.listRowButton}>
+                  <Text style={styles.listRowButtonText}>✕</Text>
+                </TouchableOpacity>
+              </View>
+            ))}
+            <View style={styles.addFieldRow}>
+              <TextInput
+                style={[styles.nameInput, styles.inlineInput]}
+                placeholder="Add step"
+                placeholderTextColor="#555"
+                value={stepDraft}
+                onChangeText={setStepDraft}
+                onSubmitEditing={handleAddStep}
+                returnKeyType="done"
+              />
+              <TouchableOpacity style={styles.addFieldButton} onPress={handleAddStep}>
+                <Text style={styles.addFieldButtonText}>Add</Text>
+              </TouchableOpacity>
+            </View>
+
+            {/* Tips */}
+            <Text style={styles.fieldLabel}>Tips</Text>
+            <Text style={styles.fieldHint}>Provide useful coaching cues or safety reminders.</Text>
+            {newTips.map((tip, index) => (
+              <View key={`${tip}-${index}`} style={styles.listRow}>
+                <Text style={styles.listRowText}>💡 {tip}</Text>
+                <TouchableOpacity onPress={() => handleRemoveTip(index)} style={styles.listRowButton}>
+                  <Text style={styles.listRowButtonText}>✕</Text>
+                </TouchableOpacity>
+              </View>
+            ))}
+            <View style={styles.addFieldRow}>
+              <TextInput
+                style={[styles.nameInput, styles.inlineInput]}
+                placeholder="Add tip"
+                placeholderTextColor="#555"
+                value={tipDraft}
+                onChangeText={setTipDraft}
+                onSubmitEditing={handleAddTip}
+                returnKeyType="done"
+              />
+              <TouchableOpacity style={styles.addFieldButton} onPress={handleAddTip}>
+                <Text style={styles.addFieldButtonText}>Add</Text>
+              </TouchableOpacity>
+            </View>
+
             {/* Preview */}
             {newName.trim().length > 0 && selectedMuscles.length > 0 && (
               <View style={styles.previewCard}>
                 <Text style={styles.previewLabel}>Preview</Text>
                 <Text style={styles.previewName}>{newName.trim()}</Text>
                 <Text style={styles.previewMuscle}>{selectedMuscles.join(', ')}</Text>
+                {(newSteps.length > 0 || newTips.length > 0) && (
+                  <Text style={[styles.previewMuscle, { marginTop: 10 }]}>Includes {newSteps.length} step(s) and {newTips.length} tip(s).</Text>
+                )}
               </View>
             )}
 
@@ -534,4 +625,53 @@ const styles = StyleSheet.create({
   },
   previewName: { fontSize: 16, fontWeight: '700', color: '#FFFFFF', marginBottom: 4 },
   previewMuscle: { fontSize: 12, color: '#666' },
+
+  listRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    backgroundColor: '#141414',
+    borderRadius: 12,
+    paddingVertical: 12,
+    paddingHorizontal: 14,
+    borderWidth: 1,
+    borderColor: '#1E1E1E',
+    marginBottom: 10,
+  },
+  listRowText: {
+    flex: 1,
+    color: '#FFFFFF',
+    fontSize: 14,
+    marginRight: 12,
+  },
+  listRowButton: {
+    padding: 6,
+    borderRadius: 10,
+    backgroundColor: '#262626',
+  },
+  listRowButtonText: {
+    color: '#FF5A5A',
+    fontWeight: '700',
+  },
+  addFieldRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    marginBottom: 22,
+  },
+  inlineInput: {
+    flex: 1,
+    marginBottom: 0,
+    minHeight: 44,
+  },
+  addFieldButton: {
+    backgroundColor: '#C8FF00',
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    borderRadius: 16,
+  },
+  addFieldButtonText: {
+    color: '#0A0A0A',
+    fontWeight: '700',
+  },
 });

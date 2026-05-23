@@ -252,7 +252,12 @@ export default function ExerciseHistoryScreen({ navigation, route }) {
       {activeTab === 'About' ? (
         <ScrollView style={styles.scroll} contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
           {(() => {
-            const instructions = EXERCISE_INSTRUCTIONS[exercise.id];
+            const instructions = EXERCISE_INSTRUCTIONS[exercise.id] ?? (
+              exercise.steps || exercise.tips ? {
+                steps: exercise.steps ?? [],
+                tips: exercise.tips ?? [],
+              } : null
+            );
             if (!instructions) {
               return (
                 <View style={styles.centered}>
