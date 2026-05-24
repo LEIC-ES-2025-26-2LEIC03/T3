@@ -17,6 +17,7 @@ export default function EditProfileScreen({ navigation }) {
     const [displayName, setDisplayName] = useState('');
     const [bio, setBio] = useState('');
     const [photoUri, setPhotoUri] = useState(null);
+    const [photoFile, setPhotoFile] = useState(null);
     const [nameError, setNameError] = useState('');
     const [photoError, setPhotoError] = useState('');
     const [saving, setSaving] = useState(false);
@@ -59,7 +60,17 @@ export default function EditProfileScreen({ navigation }) {
         if (result.canceled) return;
         const asset = result.assets[0];
         const uri = asset.uri.toLowerCase();
-        const isValidType = uri.endsWith('.jpg') || uri.endsWith('.jpeg') || uri.endsWith('.png') || uri.endsWith('.webp') || uri.endsWith('.gif');
+        const mimeType = asset.mimeType?.toLowerCase?.() ?? '';
+        const isValidType =
+            uri.endsWith('.jpg') ||
+            uri.endsWith('.jpeg') ||
+            uri.endsWith('.png') ||
+            uri.endsWith('.webp') ||
+            uri.endsWith('.gif') ||
+            mimeType === 'image/jpeg' ||
+            mimeType === 'image/png' ||
+            mimeType === 'image/webp' ||
+            mimeType === 'image/gif';
         if (!isValidType) {
             setPhotoError('Invalid file format. Please upload a JPG or PNG.');
             return;
@@ -69,6 +80,11 @@ export default function EditProfileScreen({ navigation }) {
             return;
         }
         setPhotoUri(asset.uri);
+        setPhotoFile({
+            uri: asset.uri,
+            mimeType: asset.mimeType,
+            sizeBytes: asset.fileSize ?? 0,
+        });
     };
 
     const handleSave = async () => {
@@ -81,9 +97,8 @@ export default function EditProfileScreen({ navigation }) {
             const profileResult = await updateProfile(userId, { displayName: displayName.trim(), bio: bio.trim() });
             if (!profileResult.success) { setNameError(profileResult.error); return; }
 
-            if (photoUri && !photoUri.startsWith('local://')) {
-                const mimeType = photoUri.toLowerCase().endsWith('.png') ? 'image/png' : 'image/jpeg';
-                const photoResult = await updateProfilePhoto(userId, { uri: photoUri, mimeType, sizeBytes: 0 });
+            if (photoFile) {
+                const photoResult = await updateProfilePhoto(userId, photoFile);
                 if (!photoResult.success) { setPhotoError(photoResult.error); return; }
             }
 
