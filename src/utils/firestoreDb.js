@@ -41,6 +41,7 @@ export async function getProfile(userId) {
     user_id: userId,
     displayName: d.displayName ?? '',
     photoUrl: d.photoUrl ?? null,
+    bio: d.bio ?? '',
     units: d.units ?? 'kg',
     height_cm: d.heightCm ?? null,
     weight_kg: d.weightKg ?? null,
@@ -54,6 +55,7 @@ export async function upsertProfile(userId, fields) {
   if (fields.units !== undefined) data.units = fields.units;
   if (fields.displayName !== undefined) data.displayName = fields.displayName;
   if (fields.photoUrl !== undefined) data.photoUrl = fields.photoUrl;
+  if (fields.bio !== undefined) data.bio = fields.bio;
   if (fields.heightCm !== undefined) data.heightCm = fields.heightCm;
   if (fields.weightKg !== undefined) data.weightKg = fields.weightKg;
   if (fields.bodyFatPercentage !== undefined) data.bodyFatPercentage = fields.bodyFatPercentage;
