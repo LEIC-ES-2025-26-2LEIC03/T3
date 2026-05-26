@@ -20,7 +20,7 @@
 //   Never commit real API keys to git.
 
 import { initializeApp, getApps, getApp } from 'firebase/app';
-import { initializeFirestore, persistentLocalCache, getFirestore } from 'firebase/firestore';
+import { initializeFirestore, memoryLocalCache} from 'firebase/firestore';
 import { initializeAuth, getReactNativePersistence } from 'firebase/auth';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
@@ -41,9 +41,12 @@ export const auth = initializeAuth(app, {
   persistence: getReactNativePersistence(AsyncStorage),
 });
 
-// Guard against double-init on Expo hot reload (same pattern as initializeApp above)
-export const db = getApps().length === 1
-  ? initializeFirestore(app, { localCache: persistentLocalCache() })
-  : getFirestore(app);
+// Firestore with offline persistence enabled.
+// persistentLocalCache keeps a local copy of all documents the app has read,
+// so queries work even with no network. This replaces most of what your
+// SQLite sync_queue was doing for offline reads.
+export const db = initializeFirestore(app, {
+  localCache: memoryLocalCache(),
+});
 
 export default app;
