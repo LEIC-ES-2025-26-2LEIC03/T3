@@ -460,7 +460,7 @@ const styles = StyleSheet.create({
 
   // Empty state
   emptyState: { paddingTop: 48, alignItems: 'center', gap: 8 },
-  emptyIcon: { fontSize: 40, color: '#333', marginBottom: 4 },
+  emptyIcon: { fontSize: 36, color: '#FF6B9D', marginBottom: 4 },
   emptyText: { color: '#555', fontSize: 15, fontWeight: '600' },
   emptySubText: {
     color: '#3A3A3A',

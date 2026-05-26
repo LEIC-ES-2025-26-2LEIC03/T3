@@ -136,7 +136,7 @@ export default function EditProfileScreen({ navigation }) {
         <View style={[styles.safe, { paddingTop: insets.top }]}>
             <View style={styles.topBar}>
                 <TouchableOpacity onPress={handleBack} style={styles.backBtn}>
-                    <Text style={styles.backText}>‹ Back</Text>
+                    <Text style={styles.backText}>Back</Text>
                 </TouchableOpacity>
                 <Text style={styles.title}>Edit Profile</Text>
                 <View style={{ width: 60 }} />
@@ -208,8 +208,8 @@ export default function EditProfileScreen({ navigation }) {
 const styles = StyleSheet.create({
     safe: { flex: 1, backgroundColor: '#0A0A0A' },
     topBar: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 16, paddingVertical: 14, borderBottomWidth: 1, borderBottomColor: '#181818' },
-    backBtn: { width: 60 },
-    backText: { fontSize: 17, color: '#C8FF00', fontWeight: '600' },
+    backBtn: { backgroundColor: '#1E1E1E', paddingHorizontal: 16, paddingVertical: 9, borderRadius: 12, },
+    backText: { color: '#FFFFFF', fontSize: 13, fontWeight: '800', letterSpacing: 0.5, },
     title: { fontSize: 18, fontWeight: '800', color: '#FFFFFF', letterSpacing: 0.2 },
     scroll: { padding: 20, paddingBottom: 60 },
     avatarSection: { alignItems: 'center', marginBottom: 32 },
