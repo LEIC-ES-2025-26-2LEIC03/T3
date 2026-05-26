@@ -3,7 +3,7 @@ import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
 import SetRow from './SetRow';
 import { generateId } from '../utils/id';
 
-export default function ExerciseCard({ exercise, onUpdate, onRemove }) {
+export default function ExerciseCard({ exercise, onUpdate, onRemove, onStartRest }) {
   const addSet = () => {
     const lastSet = exercise.sets[exercise.sets.length - 1];
     const newSet = {
@@ -58,6 +58,7 @@ export default function ExerciseCard({ exercise, onUpdate, onRemove }) {
           setNumber={index + 1}
           onChange={(updated) => updateSet(set.id, updated)}
           onDelete={() => deleteSet(set.id)}
+          onStartRest={onStartRest}
         />
       ))}
 

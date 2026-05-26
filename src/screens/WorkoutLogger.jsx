@@ -1,4 +1,4 @@
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useEffect } from 'react';
 import {
   View,
   Text,
@@ -14,7 +14,14 @@ import { auth } from '../utils/firebaseConfig';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import ExerciseCard from '../components/ExerciseCard';
 import ExercisePicker from '../components/ExercisePicker';
+import RestTimerModal from '../components/RestTimerModal';
 import { generateId } from '../utils/id';
+import {
+  requestNotificationPermissions,
+  setupNotificationChannel,
+  scheduleRestNotification,
+  cancelRestNotification,
+} from '../services/RestTimerService';
 
 export default function WorkoutLogger({ navigation, route }) {
   const {
@@ -28,7 +35,34 @@ export default function WorkoutLogger({ navigation, route }) {
   const [errorMsg, setErrorMsg] = useState('');
   const [startTime] = useState(new Date());
 
-  // ── Handlers ────────────────────────────────────────────────────────────────
+  // ── Rest timer state ──────────────────────────────────────────────────────
+  const [restTimerVisible, setRestTimerVisible] = useState(false);
+  const [restDuration, setRestDuration] = useState(10);
+
+  // Request notification permissions on mount
+  useEffect(() => {
+    setupNotificationChannel();
+    requestNotificationPermissions();
+  }, []);
+
+  // Called by SetRow's "Start Rest" button.
+  // `duration` comes from set.restDuration (the last value the user picked in
+  // the timer for this set), falling back to 90 s when not yet set.
+  const handleStartRest = useCallback((duration = 10) => {
+    setRestDuration(duration);
+    setRestTimerVisible(true);
+    scheduleRestNotification(duration);
+  }, []);
+
+  // Called when the user closes the rest timer modal (skip or "start next set").
+  // We await the cancel so the notification is definitely gone before the modal
+  // disappears — prevents a ghost notification firing a second later.
+  const handleCloseRestTimer = useCallback(async () => {
+    await cancelRestNotification();
+    setRestTimerVisible(false);
+  }, []);
+
+  // ── Handlers ──────────────────────────────────────────────────────────────
 
   const handleAddExercise = useCallback((exerciseDef) => {
     const newExercise = {
@@ -37,7 +71,7 @@ export default function WorkoutLogger({ navigation, route }) {
       name: exerciseDef.name,
       muscle: exerciseDef.muscle,
       category: exerciseDef.category,
-      sets: [{ id: generateId(), weight: '', reps: '', rpe: null, notes: '' }],
+      sets: [{ id: generateId(), weight: '', reps: '', rpe: null, notes: '', restDuration: 10 }],
     };
     setExercises(prev => [...prev, newExercise]);
     setPickerVisible(false);
@@ -55,7 +89,7 @@ export default function WorkoutLogger({ navigation, route }) {
   }, []);
 
   const handleFinishWorkout = async () => {
-    // ── Validation ───────────────────────────────────────────────────────────
+    // ── Validation ─────────────────────────────────────────────────────────
     if (exercises.length === 0) {
       setErrorMsg('Please add at least one exercise before finishing.');
       return;
@@ -77,7 +111,7 @@ export default function WorkoutLogger({ navigation, route }) {
       }
     }
 
-    // ── Build workout object ─────────────────────────────────────────────────
+    // ── Build workout object ────────────────────────────────────────────────
     const workout = {
       id:         generateId(),
       name:       workoutName.trim() || 'Unnamed Workout',
@@ -93,6 +127,7 @@ export default function WorkoutLogger({ navigation, route }) {
           reps:   parseInt(s.reps, 10) || 0,
           rpe:    s.rpe   || null,
           notes:  s.notes || '',
+          // restDuration is UI-only; omit from the persisted payload
         })),
       })),
     };
@@ -104,6 +139,10 @@ export default function WorkoutLogger({ navigation, route }) {
         Alert.alert('Error', 'Not signed in. Please restart the app.');
         return;
       }
+
+      // Cancel any active rest timer when finishing
+      await cancelRestNotification();
+      setRestTimerVisible(false);
 
       await saveWorkout(userId, workout);
 
@@ -169,6 +208,7 @@ export default function WorkoutLogger({ navigation, route }) {
               exercise={exercise}
               onUpdate={handleUpdateExercise}
               onRemove={() => handleRemoveExercise(exercise.id)}
+              onStartRest={handleStartRest}
             />
           ))}
 
@@ -202,6 +242,13 @@ export default function WorkoutLogger({ navigation, route }) {
           visible={pickerVisible}
           onSelect={handleAddExercise}
           onClose={() => setPickerVisible(false)}
+        />
+
+        {/* Rest timer modal */}
+        <RestTimerModal
+          visible={restTimerVisible}
+          duration={restDuration}
+          onClose={handleCloseRestTimer}
         />
       </KeyboardAvoidingView>
     </SafeAreaView>
