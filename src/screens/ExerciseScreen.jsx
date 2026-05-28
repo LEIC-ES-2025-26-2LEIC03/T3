@@ -68,6 +68,7 @@ export function computeRecords(history) {
   };
 }
 
+
 /** Compute chart data from the full history. */
 export function computeChartData(history) {
   const sortedHistory = [...history].sort((a, b) => new Date(a.date) - new Date(b.date));
