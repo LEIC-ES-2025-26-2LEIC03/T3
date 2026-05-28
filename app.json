@@ -1,15 +1,15 @@
 {
   "expo": {
-    "name": "W8",
+    "name": "",
     "slug": "W8",
     "version": "1.0.0",
     "orientation": "portrait",
-    "icon": "./assets/icon.png",
-    "userInterfaceStyle": "light",
+    "icon": "./assets/splash.png",
+    "userInterfaceStyle": "dark",
     "splash": {
-      "image": "./assets/splash-icon.png",
+      "image": "./assets/splash.png",
       "resizeMode": "contain",
-      "backgroundColor": "#ffffff"
+      "backgroundColor": "#0A0A0A"
     },
     "ios": {
       "supportsTablet": true
@@ -17,10 +17,10 @@
     "backgroundColor": "#0A0A0A",
     "android": {
       "adaptiveIcon": {
-        "backgroundColor": "#E6F4FE",
-        "foregroundImage": "./assets/android-icon-foreground.png",
+        "backgroundColor": "#0A0A0A",
+        "foregroundImage": "./assets/splash.png",
         "backgroundImage": "./assets/android-icon-background.png",
-        "monochromeImage": "./assets/android-icon-monochrome.png"
+        "monochromeImage": "./assets/splash.png"
       },
       "package": "com.anonymous.W8",
       "backgroundColor": "#0A0A0A"

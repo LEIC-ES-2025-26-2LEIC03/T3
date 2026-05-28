@@ -1,4 +1,4 @@
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useEffect } from 'react';
 import {
   View,
   Text,
@@ -9,12 +9,20 @@ import {
   KeyboardAvoidingView,
   Platform,
 } from 'react-native';
-import { saveWorkout } from '../utils/firestoreDb';
+import { saveWorkout, saveExerciseRating } from '../utils/firestoreDb';
 import { auth } from '../utils/firebaseConfig';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import ExerciseCard from '../components/ExerciseCard';
 import ExercisePicker from '../components/ExercisePicker';
+import ExerciseRatingModal from '../components/ExerciseRatingModal';
+import RestTimerModal from '../components/RestTimerModal';
 import { generateId } from '../utils/id';
+import {
+  requestNotificationPermissions,
+  setupNotificationChannel,
+  scheduleRestNotification,
+  cancelRestNotification,
+} from '../services/RestTimerService';
 
 export default function WorkoutLogger({ navigation, route }) {
   const {
@@ -28,7 +36,42 @@ export default function WorkoutLogger({ navigation, route }) {
   const [errorMsg, setErrorMsg] = useState('');
   const [startTime] = useState(new Date());
 
-  // ── Handlers ────────────────────────────────────────────────────────────────
+  // ── Rating modal state ───────────────────────────────────────────────────
+  // After a workout is saved we step through each exercise one by one,
+  // showing the rating modal per exercise. We store the saved workoutId so
+  // the rating can reference it.
+  const [savedWorkoutId, setSavedWorkoutId] = useState(null);
+  const [ratingQueue, setRatingQueue]       = useState([]);  // remaining exercises to rate
+  const [currentRating, setCurrentRating]   = useState(null); // exercise being rated now
+  
+  // ── Rest timer state ──────────────────────────────────────────────────────
+  const [restTimerVisible, setRestTimerVisible] = useState(false);
+  const [restDuration, setRestDuration] = useState(10);
+
+  // Request notification permissions on mount
+  useEffect(() => {
+    setupNotificationChannel();
+    requestNotificationPermissions();
+  }, []);
+
+  // Called by SetRow's "Start Rest" button.
+  // `duration` comes from set.restDuration (the last value the user picked in
+  // the timer for this set), falling back to 90 s when not yet set.
+  const handleStartRest = useCallback((duration = 10) => {
+    setRestDuration(duration);
+    setRestTimerVisible(true);
+    scheduleRestNotification(duration);
+  }, []);
+
+  // Called when the user closes the rest timer modal (skip or "start next set").
+  // We await the cancel so the notification is definitely gone before the modal
+  // disappears — prevents a ghost notification firing a second later.
+  const handleCloseRestTimer = useCallback(async () => {
+    await cancelRestNotification();
+    setRestTimerVisible(false);
+  }, []);
+
+  // ── Handlers ──────────────────────────────────────────────────────────────
 
   const handleAddExercise = useCallback((exerciseDef) => {
     const newExercise = {
@@ -37,7 +80,7 @@ export default function WorkoutLogger({ navigation, route }) {
       name: exerciseDef.name,
       muscle: exerciseDef.muscle,
       category: exerciseDef.category,
-      sets: [{ id: generateId(), weight: '', reps: '', rpe: null, notes: '' }],
+      sets: [{ id: generateId(), weight: '', reps: '', rpe: null, notes: '', warmUp: false, restDuration: 10 }],
     };
     setExercises(prev => [...prev, newExercise]);
     setPickerVisible(false);
@@ -55,7 +98,7 @@ export default function WorkoutLogger({ navigation, route }) {
   }, []);
 
   const handleFinishWorkout = async () => {
-    // ── Validation ───────────────────────────────────────────────────────────
+    // ── Validation ─────────────────────────────────────────────────────────
     if (exercises.length === 0) {
       setErrorMsg('Please add at least one exercise before finishing.');
       return;
@@ -78,8 +121,9 @@ export default function WorkoutLogger({ navigation, route }) {
     }
 
     // ── Build workout object ─────────────────────────────────────────────────
+    const workoutId = generateId();
     const workout = {
-      id:         generateId(),
+      id:         workoutId,
       name:       workoutName.trim() || 'Unnamed Workout',
       startedAt:  startTime.toISOString(),
       finishedAt: new Date().toISOString(),
@@ -93,6 +137,8 @@ export default function WorkoutLogger({ navigation, route }) {
           reps:   parseInt(s.reps, 10) || 0,
           rpe:    s.rpe   || null,
           notes:  s.notes || '',
+          // restDuration is UI-only; omit from the persisted payload
+          warmUp: s.warmUp || false,
         })),
       })),
     };
@@ -105,22 +151,73 @@ export default function WorkoutLogger({ navigation, route }) {
         return;
       }
 
+      // Cancel any active rest timer when finishing
+      await cancelRestNotification();
+      setRestTimerVisible(false);
+
       await saveWorkout(userId, workout);
 
-      if (navigation.popToTop) {
-        navigation.popToTop();
-      }
+      // ── Trigger rating flow ───────────────────────────────────────────────
+      // Build a queue of unique exercises (by exerciseId) to rate.
+      const uniqueExercises = exercises.filter(
+        (ex, idx, arr) => arr.findIndex(e => e.exerciseId === ex.exerciseId) === idx
+      );
 
-      const parentNavigation = navigation.getParent?.();
-      if (parentNavigation) {
-        parentNavigation.navigate('HistoryTab');
-      } else {
-        navigation.navigate('HistoryTab');
-      }
+      setSavedWorkoutId(workoutId);
+      const [first, ...rest] = uniqueExercises;
+      setCurrentRating(first ?? null);
+      setRatingQueue(rest);
     } catch (e) {
       Alert.alert('Error', 'Could not save workout. Please try again.');
     }
   };
+
+  // ── Advance to next exercise or navigate away ─────────────────────────────
+  const advanceRatingQueue = () => {
+    if (ratingQueue.length === 0) {
+      navigateAway();
+      return;
+    }
+    const [next, ...rest] = ratingQueue;
+    setCurrentRating(next);
+    setRatingQueue(rest);
+  };
+
+  const navigateAway = () => {
+    if (navigation.popToTop) navigation.popToTop();
+    const parent = navigation.getParent?.();
+    if (parent) {
+      parent.navigate('HistoryTab');
+    } else {
+      navigation.navigate('HistoryTab');
+    }
+  };
+
+  // ── Called by modal on submit ─────────────────────────────────────────────
+  const handleRatingSubmit = async (ratingValue, comment) => {
+    const userId = auth.currentUser?.uid;
+    if (!userId || !currentRating || !savedWorkoutId) {
+      console.error('RATING GUARD FAILED:', { userId, currentRating, savedWorkoutId });
+      return;
+    }
+
+    // saveExerciseRating throws on network error → modal catches and shows retry
+    await saveExerciseRating(userId, {
+      exerciseId:   currentRating.exerciseId,
+      exerciseName: currentRating.name,
+      workoutId:    savedWorkoutId,
+      rating:       ratingValue,
+      comment,
+    });
+
+    advanceRatingQueue();
+  };
+
+  const handleRatingSkip = () => {
+    advanceRatingQueue();
+  };
+
+  // ─────────────────────────────────────────────────────────────────────────
 
   const totalSets = exercises.reduce((acc, ex) => acc + ex.sets.length, 0);
 
@@ -169,6 +266,7 @@ export default function WorkoutLogger({ navigation, route }) {
               exercise={exercise}
               onUpdate={handleUpdateExercise}
               onRemove={() => handleRemoveExercise(exercise.id)}
+              onStartRest={handleStartRest}
             />
           ))}
 
@@ -178,7 +276,7 @@ export default function WorkoutLogger({ navigation, route }) {
               <Text style={styles.emptyIcon}>🏋️</Text>
               <Text style={styles.emptyTitle}>No exercises yet</Text>
               <Text style={styles.emptySubtitle}>
-                Tap {'"'}Add Exercise{'"'} to start logging your workout
+                Tap {'"'}Add Exercise{'&quot;'} to start logging your workout
               </Text>
             </View>
           )}
@@ -202,6 +300,19 @@ export default function WorkoutLogger({ navigation, route }) {
           visible={pickerVisible}
           onSelect={handleAddExercise}
           onClose={() => setPickerVisible(false)}
+        />
+
+        {/* ── Rating modal ── */}
+        <ExerciseRatingModal
+          visible={currentRating !== null}
+          exerciseName={currentRating?.name ?? ''}
+          onSubmit={handleRatingSubmit}
+          onSkip={handleRatingSkip}
+        {/* Rest timer modal */}
+        <RestTimerModal
+          visible={restTimerVisible}
+          duration={restDuration}
+          onClose={handleCloseRestTimer}
         />
       </KeyboardAvoidingView>
     </SafeAreaView>

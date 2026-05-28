@@ -12,11 +12,11 @@ const Tab = createBottomTabNavigator();
 
 function TabIcon({ label, focused }) {
   const icons = {
-    History: '◷',
-    Library: '◩',
-    Home: '⬡',
-    Settings: '◈',
-    Profile: '⚇',
+    History: '⏱',
+    Library: '≡',
+    Home: '⌂',
+    Settings: '⚙',
+    Profile: '◉',
   };
 
   const color = focused ? '#C8FF00' : '#444';

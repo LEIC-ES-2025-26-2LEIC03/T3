@@ -22,6 +22,8 @@ import {
   fetchCustomExercises,
   createCustomExercise,
   deleteCustomExercise,
+  fetchFavourites,
+  toggleFavourite,
 } from '../utils/firestoreDb';
 import { auth } from '../utils/firebaseConfig';
 import { generateId } from '../utils/id';
@@ -33,6 +35,16 @@ const friendlyFirestoreError = (error, fallback) => {
   return fallback;
 };
 
+const FAVOURITES_KEY = 'Favourites';
+
+function HeartIcon({ filled }) {
+  return (
+    <Text style={[styles.heartIcon, filled && styles.heartIconFilled]}>
+      {filled ? '♥' : '♡'}
+    </Text>
+  );
+}
+
 export default function LibraryScreen() {
   const insets = useSafeAreaInsets();
   const [userId, setUserId] = useState(auth.currentUser?.uid ?? null);
@@ -42,11 +54,18 @@ export default function LibraryScreen() {
   const [activeMuscle, setActiveMuscle] = useState('All');
   const [customExercises, setCustomExercises] = useState([]);
   const [loadingCustom, setLoadingCustom] = useState(true);
+  const [favourites, setFavourites] = useState(new Set());
+  const [loadingFavs, setLoadingFavs] = useState(false);
+  const [togglingId, setTogglingId] = useState(null);
 
   // ── Create modal state ───────────────────────────────────────────────────
   const [modalVisible, setModalVisible] = useState(false);
   const [newName, setNewName] = useState('');
   const [selectedMuscles, setSelectedMuscles] = useState([]);
+  const [newSteps, setNewSteps] = useState([]);
+  const [newTips, setNewTips] = useState([]);
+  const [stepDraft, setStepDraft] = useState('');
+  const [tipDraft, setTipDraft] = useState('');
   const [saving, setSaving] = useState(false);
 
   useFocusEffect(
@@ -70,16 +89,31 @@ export default function LibraryScreen() {
     }, [userId])
   );
 
+  useFocusEffect(
+    useCallback(() => {
+      if (!userId) { setFavourites(new Set()); setLoadingFavs(false); return; }
+
+      setLoadingFavs(true);
+      fetchFavourites(userId)
+        .then(setFavourites)
+        .catch(() => setFavourites(new Set()))
+        .finally(() => setLoadingFavs(false));
+    }, [userId])
+  );
+
   // ── Merged + filtered list ───────────────────────────────────────────────
   const allExercises = [...EXERCISES, ...customExercises];
 
   const filtered = allExercises.filter(ex => {
     const matchesSearch = ex.name.toLowerCase().includes(search.toLowerCase());
-    const matchesMuscle = activeMuscle === 'All' || ex.muscle.includes(activeMuscle);
-    return matchesSearch && matchesMuscle;
+    const matchesFav = activeMuscle === FAVOURITES_KEY ? favourites.has(ex.id) : true;
+    const matchesMuscle = activeMuscle === 'All' || activeMuscle === FAVOURITES_KEY
+      ? true
+      : ex.muscle.includes(activeMuscle);
+    return matchesSearch && matchesFav && matchesMuscle;
   });
 
-  const filterOptions = ['All', ...MUSCLES];
+  const filterOptions = ['All', FAVOURITES_KEY, ...MUSCLES];
 
   // ── Muscle toggle for the create form ───────────────────────────────────
   const toggleMuscle = (muscle) => {
@@ -115,18 +149,24 @@ export default function LibraryScreen() {
     try {
       const id = generateId();
       const muscleString = selectedMuscles.join(', ');
-      await createCustomExercise(userId, id, trimmedName, muscleString);
+      await createCustomExercise(userId, id, trimmedName, muscleString, newSteps, newTips);
       const newEx = {
         id,
         name: trimmedName,
         category: selectedMuscles[0],
         muscle: muscleString,
         isCustom: true,
+        steps: newSteps,
+        tips: newTips,
       };
       setCustomExercises(prev => [...prev, newEx]);
       setModalVisible(false);
       setNewName('');
       setSelectedMuscles([]);
+      setNewSteps([]);
+      setNewTips([]);
+      setStepDraft('');
+      setTipDraft('');
     } catch (error) {
       Alert.alert('Error', friendlyFirestoreError(error, 'Failed to save exercise. Please try again.'));
     } finally {
@@ -138,6 +178,32 @@ export default function LibraryScreen() {
     setModalVisible(false);
     setNewName('');
     setSelectedMuscles([]);
+    setNewSteps([]);
+    setNewTips([]);
+    setStepDraft('');
+    setTipDraft('');
+  };
+
+  const handleAddStep = () => {
+    const trimmed = stepDraft.trim();
+    if (trimmed.length === 0) return;
+    setNewSteps(prev => [...prev, trimmed]);
+    setStepDraft('');
+  };
+
+  const handleRemoveStep = (index) => {
+    setNewSteps(prev => prev.filter((_, idx) => idx !== index));
+  };
+
+  const handleAddTip = () => {
+    const trimmed = tipDraft.trim();
+    if (trimmed.length === 0) return;
+    setNewTips(prev => [...prev, trimmed]);
+    setTipDraft('');
+  };
+
+  const handleRemoveTip = (index) => {
+    setNewTips(prev => prev.filter((_, idx) => idx !== index));
   };
 
   // ── Delete custom exercise ───────────────────────────────────────────────
@@ -158,6 +224,11 @@ export default function LibraryScreen() {
               }
               await deleteCustomExercise(userId, ex.id);
               setCustomExercises(prev => prev.filter(e => e.id !== ex.id));
+              setFavourites(prev => {
+                const next = new Set(prev);
+                next.delete(ex.id);
+                return next;
+              });
             } catch (error) {
               Alert.alert('Error', friendlyFirestoreError(error, 'Failed to delete exercise.'));
             }
@@ -165,6 +236,31 @@ export default function LibraryScreen() {
         },
       ]
     );
+  };
+
+  const handleToggleFavourite = async (exercise) => {
+    if (!userId || togglingId === exercise.id || typeof toggleFavourite !== 'function') return;
+    setTogglingId(exercise.id);
+    const wasFav = favourites.has(exercise.id);
+
+    setFavourites(prev => {
+      const next = new Set(prev);
+      wasFav ? next.delete(exercise.id) : next.add(exercise.id);
+      return next;
+    });
+
+    try {
+      await toggleFavourite(userId, exercise);
+    } catch (error) {
+      setFavourites(prev => {
+        const next = new Set(prev);
+        wasFav ? next.add(exercise.id) : next.delete(exercise.id);
+        return next;
+      });
+      Alert.alert('Error', friendlyFirestoreError(error, 'Could not update favourite.'));
+    } finally {
+      setTogglingId(null);
+    }
   };
 
   // ── Render ───────────────────────────────────────────────────────────────
@@ -203,16 +299,33 @@ export default function LibraryScreen() {
         keyExtractor={item => item}
         style={styles.filterListContainer}
         contentContainerStyle={styles.filterList}
-        renderItem={({ item }) => (
-          <TouchableOpacity
-            style={[styles.filterChip, activeMuscle === item && styles.filterChipActive]}
-            onPress={() => setActiveMuscle(item)}
-          >
-            <Text style={[styles.filterText, activeMuscle === item && styles.filterTextActive]}>
-              {item}
-            </Text>
-          </TouchableOpacity>
-        )}
+        renderItem={({ item }) => {
+          const isFavChip = item === FAVOURITES_KEY;
+          const isActive = activeMuscle === item;
+          return (
+            <TouchableOpacity
+              style={[
+                styles.filterChip,
+                isActive && styles.filterChipActive,
+                isFavChip && styles.favChip,
+                isFavChip && isActive && styles.favChipActive,
+              ]}
+              onPress={() => setActiveMuscle(item)}
+            >
+              {isFavChip && (
+                <Text style={[styles.favChipHeart, isActive && styles.favChipHeartActive]}>♥</Text>
+              )}
+              <Text style={[
+                styles.filterText,
+                isActive && styles.filterTextActive,
+                isFavChip && styles.favChipText,
+                isFavChip && isActive && styles.favChipTextActive,
+              ]}>
+                {item}
+              </Text>
+            </TouchableOpacity>
+          );
+        }}
       />
 
       {/* Exercise list */}
@@ -241,6 +354,20 @@ export default function LibraryScreen() {
                 </View>
                 <Text style={styles.exerciseMeta}>{item.muscle}</Text>
               </View>
+
+              <TouchableOpacity
+                style={[styles.favBtn, favourites.has(item.id) && styles.favBtnActive]}
+                onPress={(e) => { e.stopPropagation(); handleToggleFavourite(item); }}
+                hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                disabled={togglingId === item.id}
+              >
+                {togglingId === item.id ? (
+                  <ActivityIndicator size="small" color="#C8FF00" style={{ width: 22 }} />
+                ) : (
+                  <HeartIcon filled={favourites.has(item.id)} />
+                )}
+              </TouchableOpacity>
+
               {item.isCustom ? (
                 <TouchableOpacity
                   style={styles.deleteBtn}
@@ -256,7 +383,15 @@ export default function LibraryScreen() {
           )}
           ListEmptyComponent={
             <View style={styles.emptyState}>
-              <Text style={styles.emptyText}>No exercises found</Text>
+              {activeMuscle === FAVOURITES_KEY && !search ? (
+                <>
+                  <Text style={styles.emptyIcon}>♡</Text>
+                  <Text style={styles.emptyText}>No favourites yet</Text>
+                  <Text style={styles.emptySubText}>Tap the heart on any exercise to save it here</Text>
+                </>
+              ) : (
+                <Text style={styles.emptyText}>No exercises found</Text>
+              )}
             </View>
           }
         />
@@ -324,12 +459,67 @@ export default function LibraryScreen() {
               })}
             </View>
 
+            {/* Steps */}
+            <Text style={styles.fieldLabel}>Instruction Steps</Text>
+            <Text style={styles.fieldHint}>List one or more execution steps for the exercise.</Text>
+            {newSteps.map((step, index) => (
+              <View key={`${step}-${index}`} style={styles.listRow}>
+                <Text style={styles.listRowText}>{index + 1}. {step}</Text>
+                <TouchableOpacity onPress={() => handleRemoveStep(index)} style={styles.listRowButton}>
+                  <Text style={styles.listRowButtonText}>✕</Text>
+                </TouchableOpacity>
+              </View>
+            ))}
+            <View style={styles.addFieldRow}>
+              <TextInput
+                style={[styles.nameInput, styles.inlineInput]}
+                placeholder="Add step"
+                placeholderTextColor="#555"
+                value={stepDraft}
+                onChangeText={setStepDraft}
+                onSubmitEditing={handleAddStep}
+                returnKeyType="done"
+              />
+              <TouchableOpacity style={styles.addFieldButton} onPress={handleAddStep}>
+                <Text style={styles.addFieldButtonText}>Add</Text>
+              </TouchableOpacity>
+            </View>
+
+            {/* Tips */}
+            <Text style={styles.fieldLabel}>Tips</Text>
+            <Text style={styles.fieldHint}>Provide useful coaching cues or safety reminders.</Text>
+            {newTips.map((tip, index) => (
+              <View key={`${tip}-${index}`} style={styles.listRow}>
+                <Text style={styles.listRowText}>💡 {tip}</Text>
+                <TouchableOpacity onPress={() => handleRemoveTip(index)} style={styles.listRowButton}>
+                  <Text style={styles.listRowButtonText}>✕</Text>
+                </TouchableOpacity>
+              </View>
+            ))}
+            <View style={styles.addFieldRow}>
+              <TextInput
+                style={[styles.nameInput, styles.inlineInput]}
+                placeholder="Add tip"
+                placeholderTextColor="#555"
+                value={tipDraft}
+                onChangeText={setTipDraft}
+                onSubmitEditing={handleAddTip}
+                returnKeyType="done"
+              />
+              <TouchableOpacity style={styles.addFieldButton} onPress={handleAddTip}>
+                <Text style={styles.addFieldButtonText}>Add</Text>
+              </TouchableOpacity>
+            </View>
+
             {/* Preview */}
             {newName.trim().length > 0 && selectedMuscles.length > 0 && (
               <View style={styles.previewCard}>
                 <Text style={styles.previewLabel}>Preview</Text>
                 <Text style={styles.previewName}>{newName.trim()}</Text>
                 <Text style={styles.previewMuscle}>{selectedMuscles.join(', ')}</Text>
+                {(newSteps.length > 0 || newTips.length > 0) && (
+                  <Text style={[styles.previewMuscle, { marginTop: 10 }]}>Includes {newSteps.length} step(s) and {newTips.length} tip(s).</Text>
+                )}
               </View>
             )}
 
@@ -407,8 +597,51 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: '#2A2A2A',
     marginRight: 8,
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  favBtn: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#1A1A1A',
+    marginRight: 8,
+  },
+  favBtnActive: {
+    backgroundColor: '#FF6B9D',
+  },
+  heartIcon: {
+    fontSize: 16,
+    color: '#FFFFFF',
+  },
+  heartIconFilled: {
+    color: '#FFFFFF',
   },
   filterChipActive: { backgroundColor: '#C8FF00', borderColor: '#C8FF00' },
+  favChip: {
+    borderColor: '#FF6B9D',
+    backgroundColor: '#1A1A1A',
+  },
+  favChipActive: {
+    backgroundColor: '#FF6B9D',
+    borderColor: '#FF6B9D',
+  },
+  favChipHeart: {
+    fontSize: 12,
+    color: '#888',
+    marginRight: 6,
+  },
+  favChipHeartActive: {
+    color: '#FFFFFF',
+  },
+  favChipText: {
+    color: '#FF6B9D',
+  },
+  favChipTextActive: {
+    color: '#FFFFFF',
+  },
   filterText: { color: '#888', fontSize: 13, fontWeight: '600' },
   filterTextActive: { color: '#0F0F0F' },
 
@@ -439,7 +672,9 @@ const styles = StyleSheet.create({
   deleteBtn: { paddingLeft: 12 },
   deleteBtnText: { fontSize: 18 },
   emptyState: { paddingTop: 48, alignItems: 'center' },
-  emptyText: { color: '#555', fontSize: 15 },
+  emptyIcon: { fontSize: 36, color: '#FF6B9D', marginBottom: 12 },
+  emptyText: { color: '#555', fontSize: 15, fontWeight: '600', marginBottom: 4 },
+  emptySubText: { color: '#3A3A3A', fontSize: 13, textAlign: 'center' },
 
   // ── Modal ─────────────────────────────────────────────────────────────────
   modalWrapper: { flex: 1, backgroundColor: '#0F0F0F' },
@@ -534,4 +769,53 @@ const styles = StyleSheet.create({
   },
   previewName: { fontSize: 16, fontWeight: '700', color: '#FFFFFF', marginBottom: 4 },
   previewMuscle: { fontSize: 12, color: '#666' },
+
+  listRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    backgroundColor: '#141414',
+    borderRadius: 12,
+    paddingVertical: 12,
+    paddingHorizontal: 14,
+    borderWidth: 1,
+    borderColor: '#1E1E1E',
+    marginBottom: 10,
+  },
+  listRowText: {
+    flex: 1,
+    color: '#FFFFFF',
+    fontSize: 14,
+    marginRight: 12,
+  },
+  listRowButton: {
+    padding: 6,
+    borderRadius: 10,
+    backgroundColor: '#262626',
+  },
+  listRowButtonText: {
+    color: '#FF5A5A',
+    fontWeight: '700',
+  },
+  addFieldRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    marginBottom: 22,
+  },
+  inlineInput: {
+    flex: 1,
+    marginBottom: 0,
+    minHeight: 44,
+  },
+  addFieldButton: {
+    backgroundColor: '#C8FF00',
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    borderRadius: 16,
+  },
+  addFieldButtonText: {
+    color: '#0A0A0A',
+    fontWeight: '700',
+  },
 });

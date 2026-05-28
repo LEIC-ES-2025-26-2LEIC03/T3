@@ -24,6 +24,7 @@ const normalizeProfile = (userId, profile = {}) => ({
   fitnessGoals: profile.fitnessGoals ?? profile.fitness_goals ?? '',
   displayName: profile.displayName ?? '',
   photoUrl: profile.photoUrl ?? null,
+  bio: profile.bio ?? '',
 });
 
 export const getProfile = async (userId) => {
@@ -51,6 +52,7 @@ export const updateProfile = async (userId, updates) => {
       units: updates.units,
       displayName: updates.displayName,
       photoUrl: updates.photoUrl,
+      bio: updates.bio,
     });
 
     return {
@@ -59,6 +61,48 @@ export const updateProfile = async (userId, updates) => {
     };
   } catch {
     return { success: false, error: 'Could not update profile. Please try again.' };
+  }
+};
+
+export const updateProfilePhoto = async (userId, file) => {
+  try {
+    if (!userId) {
+      return { success: false, error: 'You must be signed in to update your profile photo.' };
+    }
+
+    if (!file?.uri) {
+      return { success: false, error: 'Please choose a profile picture before saving.' };
+    }
+
+    const lowerUri = file.uri.toLowerCase();
+    const lowerMimeType = file.mimeType?.toLowerCase?.() ?? '';
+    const isValidType =
+      lowerUri.endsWith('.jpg') ||
+      lowerUri.endsWith('.jpeg') ||
+      lowerUri.endsWith('.png') ||
+      lowerUri.endsWith('.webp') ||
+      lowerUri.endsWith('.gif') ||
+      lowerMimeType === 'image/jpeg' ||
+      lowerMimeType === 'image/png' ||
+      lowerMimeType === 'image/webp' ||
+      lowerMimeType === 'image/gif';
+
+    if (!isValidType) {
+      return { success: false, error: 'Invalid file format. Please upload a JPG or PNG.' };
+    }
+
+    if (file.sizeBytes && file.sizeBytes > 5 * 1024 * 1024) {
+      return { success: false, error: 'File too large - max 5 MB allowed.' };
+    }
+
+    await upsertFsProfile(userId, { photoUrl: file.uri });
+
+    return {
+      success: true,
+      profile: normalizeProfile(userId, { photoUrl: file.uri }),
+    };
+  } catch {
+    return { success: false, error: 'Could not update profile photo. Please try again.' };
   }
 };
 

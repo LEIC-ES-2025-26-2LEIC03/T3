@@ -17,6 +17,7 @@ export default function EditProfileScreen({ navigation }) {
     const [displayName, setDisplayName] = useState('');
     const [bio, setBio] = useState('');
     const [photoUri, setPhotoUri] = useState(null);
+    const [photoFile, setPhotoFile] = useState(null);
     const [nameError, setNameError] = useState('');
     const [photoError, setPhotoError] = useState('');
     const [saving, setSaving] = useState(false);
@@ -59,7 +60,17 @@ export default function EditProfileScreen({ navigation }) {
         if (result.canceled) return;
         const asset = result.assets[0];
         const uri = asset.uri.toLowerCase();
-        const isValidType = uri.endsWith('.jpg') || uri.endsWith('.jpeg') || uri.endsWith('.png') || uri.endsWith('.webp') || uri.endsWith('.gif');
+        const mimeType = asset.mimeType?.toLowerCase?.() ?? '';
+        const isValidType =
+            uri.endsWith('.jpg') ||
+            uri.endsWith('.jpeg') ||
+            uri.endsWith('.png') ||
+            uri.endsWith('.webp') ||
+            uri.endsWith('.gif') ||
+            mimeType === 'image/jpeg' ||
+            mimeType === 'image/png' ||
+            mimeType === 'image/webp' ||
+            mimeType === 'image/gif';
         if (!isValidType) {
             setPhotoError('Invalid file format. Please upload a JPG or PNG.');
             return;
@@ -69,6 +80,11 @@ export default function EditProfileScreen({ navigation }) {
             return;
         }
         setPhotoUri(asset.uri);
+        setPhotoFile({
+            uri: asset.uri,
+            mimeType: asset.mimeType,
+            sizeBytes: asset.fileSize ?? 0,
+        });
     };
 
     const handleSave = async () => {
@@ -81,9 +97,8 @@ export default function EditProfileScreen({ navigation }) {
             const profileResult = await updateProfile(userId, { displayName: displayName.trim(), bio: bio.trim() });
             if (!profileResult.success) { setNameError(profileResult.error); return; }
 
-            if (photoUri && !photoUri.startsWith('local://')) {
-                const mimeType = photoUri.toLowerCase().endsWith('.png') ? 'image/png' : 'image/jpeg';
-                const photoResult = await updateProfilePhoto(userId, { uri: photoUri, mimeType, sizeBytes: 0 });
+            if (photoFile) {
+                const photoResult = await updateProfilePhoto(userId, photoFile);
                 if (!photoResult.success) { setPhotoError(photoResult.error); return; }
             }
 
@@ -121,7 +136,7 @@ export default function EditProfileScreen({ navigation }) {
         <View style={[styles.safe, { paddingTop: insets.top }]}>
             <View style={styles.topBar}>
                 <TouchableOpacity onPress={handleBack} style={styles.backBtn}>
-                    <Text style={styles.backText}>‹ Back</Text>
+                    <Text style={styles.backText}>Back</Text>
                 </TouchableOpacity>
                 <Text style={styles.title}>Edit Profile</Text>
                 <View style={{ width: 60 }} />
@@ -193,8 +208,8 @@ export default function EditProfileScreen({ navigation }) {
 const styles = StyleSheet.create({
     safe: { flex: 1, backgroundColor: '#0A0A0A' },
     topBar: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 16, paddingVertical: 14, borderBottomWidth: 1, borderBottomColor: '#181818' },
-    backBtn: { width: 60 },
-    backText: { fontSize: 17, color: '#C8FF00', fontWeight: '600' },
+    backBtn: { backgroundColor: '#1E1E1E', paddingHorizontal: 16, paddingVertical: 9, borderRadius: 12, },
+    backText: { color: '#FFFFFF', fontSize: 13, fontWeight: '800', letterSpacing: 0.5, },
     title: { fontSize: 18, fontWeight: '800', color: '#FFFFFF', letterSpacing: 0.2 },
     scroll: { padding: 20, paddingBottom: 60 },
     avatarSection: { alignItems: 'center', marginBottom: 32 },

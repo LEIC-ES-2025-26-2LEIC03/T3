@@ -58,6 +58,8 @@ const customExerciseCol = (userId) => collection(db, 'users', userId, 'custom_ex
 const customExerciseDoc = (userId, exerciseId) => doc(db, 'users', userId, 'custom_exercises', exerciseId);
 const bodyMetricCol = (userId) => collection(db, 'users', userId, 'body_metrics');
 const bodyMetricDoc = (userId, metricId) => doc(db, 'users', userId, 'body_metrics', metricId);
+const ratingCol = (userId) => collection(db, 'users', userId, 'exercise_ratings');
+const ratingDoc = (userId, ratingId) => doc(db, 'users', userId, 'exercise_ratings', ratingId);
 
 const syncSoon = (userId) => {
   syncPendingWorkouts(userId).catch(() => {});
@@ -77,6 +79,7 @@ export async function getProfile(userId) {
       user_id: userId,
       displayName: d.displayName ?? '',
       photoUrl: d.photoUrl ?? null,
+      bio: d.bio ?? '',
       units: d.units ?? 'kg',
       height_cm: d.heightCm ?? null,
       weight_kg: d.weightKg ?? null,
@@ -95,6 +98,7 @@ export async function upsertProfile(userId, fields) {
   if (fields.units !== undefined) localFields.units = fields.units;
   if (fields.displayName !== undefined) localFields.displayName = fields.displayName;
   if (fields.photoUrl !== undefined) localFields.photoUrl = fields.photoUrl;
+  if (fields.bio !== undefined) localFields.bio = fields.bio;
   if (fields.heightCm !== undefined) localFields.height_cm = fields.heightCm;
   if (fields.weightKg !== undefined) localFields.weight_kg = fields.weightKg;
   if (fields.bodyFatPercentage !== undefined) localFields.body_fat_percentage = fields.bodyFatPercentage;
@@ -314,7 +318,7 @@ export async function deleteWorkout(userId, id) {
 /**
  * Returns all custom exercises created by the user.
  * The shape matches static EXERCISES so the rest of the app handles them uniformly:
- *   { id, name, category, muscle, isCustom: true }
+ * { id, name, category, muscle, isCustom: true }
  */
 export async function fetchCustomExercises(userId) {
   if (!userId) return [];
@@ -337,6 +341,8 @@ export async function fetchCustomExercises(userId) {
           category: data.muscle,
           muscle: data.muscle,
           isCustom: true,
+          steps: Array.isArray(data.steps) ? data.steps : [],
+          tips: Array.isArray(data.tips) ? data.tips : [],
         };
       })
       .filter(Boolean);
@@ -351,8 +357,9 @@ export async function fetchCustomExercises(userId) {
  * Persists a new custom exercise to Firestore.
  * `id` should be a pre-generated unique string (e.g. from generateId()).
  * `name` is the exercise name; `muscle` is a comma-separated muscle string.
+ * `steps` and `tips` are optional arrays describing how to perform the exercise.
  */
-export async function createCustomExercise(userId, id, name, muscle) {
+export async function createCustomExercise(userId, id, name, muscle, steps = [], tips = []) {
   if (!userId) throw new Error('Cannot create a custom exercise without a signed-in user.');
   await createLocalCustomExercise(userId, id, name, muscle);
   syncSoon(userId);
@@ -368,7 +375,7 @@ export async function deleteCustomExercise(userId, exerciseId) {
   syncSoon(userId);
 }
 
-// â”€â”€â”€ Body metrics history â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ─── Body metrics history ────────────────────────────────────────────────────
 
 export async function addBodyMetric(userId, metric) {
   if (!userId) throw new Error('Cannot save body metrics without a signed-in user.');
@@ -443,6 +450,58 @@ export async function fetchExerciseHistory(userId, exerciseId) {
   return history;
 }
 
+// ─── Exercise Ratings ─────────────────────────────────────────────────────────
+
+/**
+ * Persist a single exercise rating to Firestore.
+ */
+export async function saveExerciseRating(userId, {
+  exerciseId,
+  exerciseName,
+  workoutId,
+  rating,
+  comment = '',
+}) {
+  const id = generateId();
+
+  await setDoc(ratingDoc(userId, id), {
+    exerciseId,
+    exerciseName,
+    workoutId,
+    rating,                            // 1-5 integer
+    comment: comment.trim() || null,  // null when omitted — saves storage
+    ratedAt: serverTimestamp(),
+    createdAt: serverTimestamp(),
+  });
+
+  return id;
+}
+
+/**
+ * Fetch all ratings for a given exercise, newest first.
+ */
+export async function fetchRatingsForExercise(userId, exerciseId) {
+  const q = query(
+    ratingCol(userId),
+    where('exerciseId', '==', exerciseId),
+    orderBy('ratedAt', 'desc')
+  );
+
+  const snap = await getDocs(q);
+  return snap.docs.map(d => {
+    const data = d.data();
+    return {
+      id: d.id,
+      exerciseId: data.exerciseId,
+      exerciseName: data.exerciseName,
+      workoutId: data.workoutId,
+      rating: data.rating,
+      comment: data.comment ?? null,
+      ratedAt: data.ratedAt?.toDate?.()?.toISOString() ?? null,
+    };
+  });
+}
+
 // ─── Shared utility ───────────────────────────────────────────────────────────
 
 export function buildExercisesFromTemplate(exercises) {
@@ -460,8 +519,7 @@ export function buildExercisesFromTemplate(exercises) {
 
 /**
  * Permanently removes every document inside the user's subcollections
- * (templates, workouts, favourites, custom_exercises) and the user
- * profile document itself.  Uses batched writes (max 500 per batch).
+ * and the user profile document itself.
  */
 export async function deleteAllUserData(userId) {
   if (!userId) throw new Error('Cannot delete user data without a signed-in user.');
@@ -472,6 +530,7 @@ export async function deleteAllUserData(userId) {
     favouriteCol(userId),
     customExerciseCol(userId),
     bodyMetricCol(userId),
+    ratingCol(userId), // Added rating collection to total data teardown
   ];
 
   const failures = [];
