@@ -1,40 +1,4 @@
-function computeRecords(history) {
-  let bestWeight = 0;
-  let bestVolume = 0;
-  let bestSetStr = null;
-  let totalSets = 0;
-  let est1RM = 0;
-
-  for (const entry of history) {
-    for (const s of entry.sets) {
-      const w = s.weight ?? 0;
-      const r = s.reps ?? 0;
-      totalSets++;
-
-      if (w > bestWeight) bestWeight = w;
-
-      const vol = w * r;
-      if (vol > bestVolume) {
-        bestVolume = vol;
-        bestSetStr = `${w} kg × ${r}`;
-      }
-
-      if (r > 0 && r <= 30 && w > 0) {
-        const e1rm = w * (36 / (37 - r));
-        if (e1rm > est1RM) est1RM = e1rm;
-      }
-    }
-  }
-
-  return {
-    bestWeight,
-    bestVolume,
-    bestSetStr,
-    est1RM: Math.round(est1RM * 10) / 10,
-    totalSets,
-    totalSessions: history.length,
-  };
-}
+import { computeRecords, computeChartData } from '../../src/screens/ExerciseScreen';
 
 describe('US-02 | Exercise progress unit tests', () => {
   it('computes personal records from workout history', () => {
@@ -69,6 +33,52 @@ describe('US-02 | Exercise progress unit tests', () => {
       totalSets: 0,
       totalSessions: 0,
     });
+  });
+});
+
+describe('Graphics Tab | Chart Data computation', () => {
+  it('correctly processes and formats history data for line charts', () => {
+    const history = [
+      {
+        date: '2026-05-18T10:00:00.000Z',
+        sets: [
+          { weight: 100, reps: 5 },
+          { weight: 90, reps: 8 },
+        ]
+      },
+      {
+        date: '2026-05-15T10:00:00.000Z',
+        sets: [
+          { weight: 80, reps: 10 },
+          { weight: 85, reps: 10 }
+        ]
+      }
+    ];
+
+    const chartData = computeChartData(history);
+    
+    // Sort ascending, so oldest (15th) is first, newest (18th) is second
+    expect(chartData.labels).toEqual(['15/5', '18/5']);
+    
+    // Data maxes
+    expect(chartData.maxWeightData).toEqual([85, 100]); // best weight for each session
+    expect(chartData.totalVolumeData).toEqual([1650, 1220]); // 80*10 + 85*10 = 1650; 100*5 + 90*8 = 1220
+    expect(chartData.maxRepsData).toEqual([10, 8]); // max reps for each session
+    
+    // 1RM est
+    // For 85x10: 85 * (36 / 27) = 113.3
+    // For 100x5: 100 * (36 / 32) = 112.5
+    expect(chartData.est1RMData).toEqual([113.3, 112.5]);
+  });
+
+  it('handles empty history by returning default arrays containing at least one zero/empty value', () => {
+    const chartData = computeChartData([]);
+    
+    expect(chartData.labels).toEqual(['']);
+    expect(chartData.est1RMData).toEqual([0]);
+    expect(chartData.maxWeightData).toEqual([0]);
+    expect(chartData.totalVolumeData).toEqual([0]);
+    expect(chartData.maxRepsData).toEqual([0]);
   });
 });
 

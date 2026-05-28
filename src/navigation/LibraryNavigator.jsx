@@ -2,7 +2,7 @@ import React from 'react';
 import { createStackNavigator } from '@react-navigation/stack';
 
 import LibraryScreen from '../screens/LibraryScreen';
-import ExerciseHistoryScreen from '../screens/ExerciseHistoryScreen';
+import ExerciseHistoryScreen from '../screens/ExerciseScreen';
 
 import { SPRING_TRANSITION, forSlideFromRight } from './transitions';
 

@@ -686,12 +686,21 @@ export async function markSynced(userId, tableName, rowId, queueId) {
   const ts = now();
 
   await db.withTransactionAsync(async () => {
-    await db.runAsync(
-      `UPDATE ${tableName}
-       SET synced_at = ?, sync_status = 'synced'
-       WHERE id = ? AND user_id = ?`,
-      [ts, rowId, userId]
-    );
+    if (tableName === 'user_profiles') {
+      await db.runAsync(
+        `UPDATE user_profiles
+         SET synced_at = ?, sync_status = 'synced'
+         WHERE user_id = ?`,
+        [ts, userId]
+      );
+    } else {
+      await db.runAsync(
+        `UPDATE ${tableName}
+         SET synced_at = ?, sync_status = 'synced'
+         WHERE id = ? AND user_id = ?`,
+        [ts, rowId, userId]
+      );
+    }
 
     await db.runAsync(`DELETE FROM sync_queue WHERE id = ?`, [queueId]);
   });
