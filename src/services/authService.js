@@ -3,6 +3,7 @@ import {
   signInWithEmailAndPassword,
   signOut,
   deleteUser,
+  sendPasswordResetEmail
 } from 'firebase/auth';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { auth } from '../utils/firebaseConfig';
@@ -100,6 +101,15 @@ export async function deleteAccount() {
     return { success: true };
   } catch (e) {
     console.error('[deleteAccount] failed:', e);
+    return { success: false, error: firebaseErrorMessage(e.code) };
+  }
+}
+
+export async function resetPassword(email) {
+  try {
+    await sendPasswordResetEmail(auth, email);
+    return { success: true };
+  } catch (e) {
     return { success: false, error: firebaseErrorMessage(e.code) };
   }
 }

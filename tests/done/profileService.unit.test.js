@@ -2,6 +2,7 @@ import {
   getProfile,
   getUserProfile,
   updateProfile,
+  updateProfilePhoto,
   saveUserProfile,
 } from '../../src/services/profileService';
 import {
@@ -49,7 +50,34 @@ describe('US-03/20 | Profile service unit tests', () => {
       units: 'lbs',
       displayName: undefined,
       photoUrl: undefined,
+      bio: undefined,
     });
+  });
+
+  it('saves valid profile photos', async () => {
+    const result = await updateProfilePhoto('user-001', {
+      uri: 'file:///photos/avatar.jpg',
+      mimeType: 'image/jpeg',
+      sizeBytes: 1024,
+    });
+
+    expect(result.success).toBe(true);
+    expect(result.profile.photoUrl).toBe('file:///photos/avatar.jpg');
+    expect(upsertFsProfile).toHaveBeenCalledWith('user-001', {
+      photoUrl: 'file:///photos/avatar.jpg',
+    });
+  });
+
+  it('rejects unsupported profile photo files', async () => {
+    const result = await updateProfilePhoto('user-001', {
+      uri: 'file:///docs/avatar.pdf',
+      mimeType: 'application/pdf',
+      sizeBytes: 1024,
+    });
+
+    expect(result.success).toBe(false);
+    expect(result.error).toMatch(/invalid file format/i);
+    expect(upsertFsProfile).not.toHaveBeenCalled();
   });
 
   it('rejects unsupported unit preferences', async () => {

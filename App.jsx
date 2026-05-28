@@ -10,6 +10,7 @@ import { EASE_TRANSITION, forFade } from './src/navigation/transitions';
 
 import LoginScreen from './src/screens/LoginScreen';
 import RegisterScreen from './src/screens/RegisterScreen';
+import ForgotPasswordScreen from './src/screens/ForgotPasswordScreen';
 import ProfileSetupScreen from './src/screens/ProfileSetupScreen';
 import TabNavigator from './src/navigation/TabNavigator';
 
@@ -104,6 +105,7 @@ export default function AppNavigator() {
               <>
                 <Root.Screen name="Login" component={LoginScreen} />
                 <Root.Screen name="Register" component={RegisterScreen} />
+                <Root.Screen name="ForgotPassword" component={ForgotPasswordScreen} />
               </>
             )}
           </Root.Navigator>

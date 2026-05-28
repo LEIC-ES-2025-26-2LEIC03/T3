@@ -71,7 +71,7 @@ export default function WorkoutLogger({ navigation, route }) {
       name: exerciseDef.name,
       muscle: exerciseDef.muscle,
       category: exerciseDef.category,
-      sets: [{ id: generateId(), weight: '', reps: '', rpe: null, notes: '', restDuration: 10 }],
+      sets: [{ id: generateId(), weight: '', reps: '', rpe: null, notes: '', warmUp: false, restDuration: 10 }],
     };
     setExercises(prev => [...prev, newExercise]);
     setPickerVisible(false);
@@ -128,6 +128,7 @@ export default function WorkoutLogger({ navigation, route }) {
           rpe:    s.rpe   || null,
           notes:  s.notes || '',
           // restDuration is UI-only; omit from the persisted payload
+          warmUp: s.warmUp || false,
         })),
       })),
     };

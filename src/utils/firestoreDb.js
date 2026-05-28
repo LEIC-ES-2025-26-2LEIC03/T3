@@ -41,6 +41,7 @@ export async function getProfile(userId) {
     user_id: userId,
     displayName: d.displayName ?? '',
     photoUrl: d.photoUrl ?? null,
+    bio: d.bio ?? '',
     units: d.units ?? 'kg',
     height_cm: d.heightCm ?? null,
     weight_kg: d.weightKg ?? null,
@@ -54,6 +55,7 @@ export async function upsertProfile(userId, fields) {
   if (fields.units !== undefined) data.units = fields.units;
   if (fields.displayName !== undefined) data.displayName = fields.displayName;
   if (fields.photoUrl !== undefined) data.photoUrl = fields.photoUrl;
+  if (fields.bio !== undefined) data.bio = fields.bio;
   if (fields.heightCm !== undefined) data.heightCm = fields.heightCm;
   if (fields.weightKg !== undefined) data.weightKg = fields.weightKg;
   if (fields.bodyFatPercentage !== undefined) data.bodyFatPercentage = fields.bodyFatPercentage;
@@ -294,6 +296,8 @@ export async function fetchCustomExercises(userId) {
       category: data.muscle, // category mirrors primary muscle for custom exercises
       muscle: data.muscle,
       isCustom: true,
+      steps: Array.isArray(data.steps) ? data.steps : [],
+      tips: Array.isArray(data.tips) ? data.tips : [],
     };
   });
 }
@@ -302,12 +306,15 @@ export async function fetchCustomExercises(userId) {
  * Persists a new custom exercise to Firestore.
  * `id` should be a pre-generated unique string (e.g. from generateId()).
  * `name` is the exercise name; `muscle` is a comma-separated muscle string.
+ * `steps` and `tips` are optional arrays describing how to perform the exercise.
  */
-export async function createCustomExercise(userId, id, name, muscle) {
+export async function createCustomExercise(userId, id, name, muscle, steps = [], tips = []) {
   if (!userId) throw new Error('Cannot create a custom exercise without a signed-in user.');
   await setDoc(customExerciseDoc(userId, id), {
     name: name.trim(),
     muscle: muscle.trim(),
+    steps: Array.isArray(steps) ? steps.filter(Boolean) : [],
+    tips: Array.isArray(tips) ? tips.filter(Boolean) : [],
     createdAt: serverTimestamp(),
     updatedAt: serverTimestamp(),
   });

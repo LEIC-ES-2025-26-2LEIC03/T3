@@ -4,7 +4,7 @@ import { View, Text, TextInput, TouchableOpacity, StyleSheet, Modal } from 'reac
 // Default rest duration in seconds when the user hasn't customised it yet.
 const DEFAULT_REST_SECONDS = 10;
 
-export default function SetRow({ set, setNumber, onChange, onDelete, onStartRest }) {
+export default function SetRow({ set, setNumber, onChange, onToggleWarmUp, onDelete, onStartRest }) {
   const [rpeModalVisible, setRpeModalVisible] = useState(false);
 
   // Pass the per-set rest duration so WorkoutLogger can open the timer at the
@@ -14,12 +14,17 @@ export default function SetRow({ set, setNumber, onChange, onDelete, onStartRest
   };
 
   return (
-    <View style={styles.setContainer}>
+    <View style={[styles.setContainer, set.warmUp && styles.setContainerWarmUp]}>
       {/* TOP ROW: Set #, Weight, Reps, RPE and Delete */}
       <View style={styles.mainRow}>
-        <View style={styles.setBadge}>
-          <Text style={styles.setNumber}>{setNumber}</Text>
-        </View>
+        <TouchableOpacity
+          style={[styles.setBadge, set.warmUp && styles.setBadgeWarmUp]}
+          onPress={onToggleWarmUp}
+        >
+          <Text style={[styles.setNumber, set.warmUp && styles.setNumberWarmUp]}>
+            {set.warmUp ? 'W' : setNumber}
+          </Text>
+        </TouchableOpacity>
 
         <View style={styles.inputGroup}>
           <TextInput
@@ -165,10 +170,21 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
+  setBadgeWarmUp: {
+    borderWidth: 1,
+    borderColor: '#FF8C00',
+    backgroundColor: '#2A1200',
+  },
   setNumber: {
     color: '#999',
     fontSize: 11,
     fontWeight: 'bold',
+  },
+  setNumberWarmUp: {
+    color: '#FFAC33',
+  },
+  setContainerWarmUp: {
+    borderColor: '#FF8C00',
   },
   inputGroup: {
     flex: 1,
