@@ -1,8 +1,17 @@
 import React, { useState } from 'react';
 import { View, Text, TextInput, TouchableOpacity, StyleSheet, Modal } from 'react-native';
 
-export default function SetRow({ set, setNumber, onChange, onToggleWarmUp, onDelete }) {
+// Default rest duration in seconds when the user hasn't customised it yet.
+const DEFAULT_REST_SECONDS = 10;
+
+export default function SetRow({ set, setNumber, onChange, onToggleWarmUp, onDelete, onStartRest }) {
   const [rpeModalVisible, setRpeModalVisible] = useState(false);
+
+  // Pass the per-set rest duration so WorkoutLogger can open the timer at the
+  // right value. Falls back to the global default if not yet set.
+  const handleStartRest = () => {
+    onStartRest(set.restDuration ?? DEFAULT_REST_SECONDS);
+  };
 
   return (
     <View style={[styles.setContainer, set.warmUp && styles.setContainerWarmUp]}>
@@ -43,8 +52,8 @@ export default function SetRow({ set, setNumber, onChange, onToggleWarmUp, onDel
           <Text style={styles.unit}>reps</Text>
         </View>
 
-        <TouchableOpacity 
-          style={[styles.rpeButton, set.rpe && styles.rpeButtonActive]} 
+        <TouchableOpacity
+          style={[styles.rpeButton, set.rpe && styles.rpeButtonActive]}
           onPress={() => setRpeModalVisible(true)}
         >
           <Text style={[styles.rpeButtonText, set.rpe && styles.rpeButtonActiveText]}>
@@ -57,8 +66,11 @@ export default function SetRow({ set, setNumber, onChange, onToggleWarmUp, onDel
         </TouchableOpacity>
       </View>
 
-      {/* BOTTOM ROW: Notes */}
+      {/* BOTTOM ROW: Rest button + Notes */}
       <View style={styles.extraRow}>
+        <TouchableOpacity style={styles.restBtn} onPress={handleStartRest}>
+          <Text style={styles.restBtnText}>⏱  Start Rest</Text>
+        </TouchableOpacity>
         <TextInput
           style={styles.notesInput}
           placeholder="Add note..."
@@ -75,9 +87,9 @@ export default function SetRow({ set, setNumber, onChange, onToggleWarmUp, onDel
         animationType="fade"
         onRequestClose={() => setRpeModalVisible(false)}
       >
-        <TouchableOpacity 
-          style={styles.modalOverlay} 
-          activeOpacity={1} 
+        <TouchableOpacity
+          style={styles.modalOverlay}
+          activeOpacity={1}
           onPressOut={() => setRpeModalVisible(false)}
         >
           <View style={styles.modalContent}>
@@ -98,7 +110,7 @@ export default function SetRow({ set, setNumber, onChange, onToggleWarmUp, onDel
                 </TouchableOpacity>
               ))}
             </View>
-            <TouchableOpacity 
+            <TouchableOpacity
               style={styles.clearRpeBtn}
               onPress={() => {
                 onChange({ ...set, rpe: null });
@@ -133,6 +145,22 @@ const styles = StyleSheet.create({
     paddingTop: 12,
     borderTopWidth: 1,
     borderTopColor: '#222',
+    gap: 8,
+  },
+  restBtn: {
+    alignSelf: 'flex-start',
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 8,
+    backgroundColor: 'rgba(200,255,0,0.08)',
+    borderWidth: 1,
+    borderColor: 'rgba(200,255,0,0.2)',
+  },
+  restBtnText: {
+    color: '#C8FF00',
+    fontSize: 12,
+    fontWeight: '700',
+    letterSpacing: 0.3,
   },
   setBadge: {
     width: 24,
