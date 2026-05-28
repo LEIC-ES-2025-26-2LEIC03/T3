@@ -308,6 +308,8 @@ export default function WorkoutLogger({ navigation, route }) {
           exerciseName={currentRating?.name ?? ''}
           onSubmit={handleRatingSubmit}
           onSkip={handleRatingSkip}
+        />
+
         {/* Rest timer modal */}
         <RestTimerModal
           visible={restTimerVisible}
