@@ -126,6 +126,8 @@ async function pushToFirestore(tableName, rowId, operation, payload, userId) {
     await setDoc(ref, {
       name: payload.name,
       muscle: payload.muscle,
+      steps: Array.isArray(payload.steps) ? payload.steps : [],
+      tips: Array.isArray(payload.tips) ? payload.tips : [],
       createdAt: serverTimestamp(),
       updatedAt: serverTimestamp(),
       deletedAt: null,
@@ -138,6 +140,19 @@ async function pushToFirestore(tableName, rowId, operation, payload, userId) {
       weightKg: payload.weightKg ?? null,
       bodyFatPercentage: payload.bodyFatPercentage ?? null,
       recordedAt: payload.recordedAt ?? payload.date ?? new Date().toISOString(),
+      createdAt: serverTimestamp(),
+    }, { merge: true });
+    return;
+  }
+
+  if (tableName === 'exercise_ratings') {
+    await setDoc(doc(db, 'users', userId, 'exercise_ratings', rowId), {
+      exerciseId: payload.exerciseId,
+      exerciseName: payload.exerciseName,
+      workoutId: payload.workoutId,
+      rating: payload.rating,
+      comment: payload.comment ?? null,
+      ratedAt: payload.ratedAt ?? new Date().toISOString(),
       createdAt: serverTimestamp(),
     }, { merge: true });
     return;

@@ -105,17 +105,25 @@ export async function applyRemoteFavourites(userId, exerciseIds) {
 
 export async function fetchLocalCustomExercises(userId) {
   const exercises = await readJson(key(userId, 'customExercises'), {});
-  return Object.values(exercises);
+  return Object.values(exercises).map(exercise => ({
+    ...exercise,
+    steps: Array.isArray(exercise.steps) ? exercise.steps : [],
+    tips: Array.isArray(exercise.tips) ? exercise.tips : [],
+  }));
 }
 
-export async function createLocalCustomExercise(userId, id, name, muscle) {
+export async function createLocalCustomExercise(userId, id, name, muscle, steps = [], tips = []) {
   const exercises = await readJson(key(userId, 'customExercises'), {});
+  const normalizedSteps = Array.isArray(steps) ? steps : [];
+  const normalizedTips = Array.isArray(tips) ? tips : [];
   const exercise = {
     id,
     name: name.trim(),
     muscle: muscle.trim(),
     category: muscle.trim(),
     isCustom: true,
+    steps: normalizedSteps,
+    tips: normalizedTips,
   };
   exercises[id] = exercise;
   await writeJson(key(userId, 'customExercises'), exercises);
@@ -132,7 +140,13 @@ export async function deleteLocalCustomExercise(userId, exerciseId) {
 
 export async function applyRemoteCustomExercises(userId, exercises) {
   const byId = {};
-  for (const exercise of exercises) byId[exercise.id] = exercise;
+  for (const exercise of exercises) {
+    byId[exercise.id] = {
+      ...exercise,
+      steps: Array.isArray(exercise.steps) ? exercise.steps : [],
+      tips: Array.isArray(exercise.tips) ? exercise.tips : [],
+    };
+  }
   await writeJson(key(userId, 'customExercises'), byId);
 }
 
@@ -158,4 +172,34 @@ export async function fetchLocalBodyMetrics(userId) {
 
 export async function applyRemoteBodyMetrics(userId, records) {
   await writeJson(key(userId, 'bodyMetrics'), records);
+}
+
+export async function saveLocalExerciseRating(userId, rating) {
+  const ratings = await readJson(key(userId, 'exerciseRatings'), []);
+  const record = {
+    id: rating.id,
+    exerciseId: rating.exerciseId,
+    exerciseName: rating.exerciseName,
+    workoutId: rating.workoutId,
+    rating: rating.rating,
+    comment: rating.comment?.trim() || null,
+    ratedAt: rating.ratedAt ?? new Date().toISOString(),
+  };
+  await writeJson(key(userId, 'exerciseRatings'), [record, ...ratings]);
+  await enqueueOfflineOp(userId, 'exercise_ratings', record.id, 'upsert', record);
+  return record;
+}
+
+export async function fetchLocalRatingsForExercise(userId, exerciseId) {
+  const ratings = await readJson(key(userId, 'exerciseRatings'), []);
+  return ratings
+    .filter(record => record.exerciseId === exerciseId)
+    .sort((a, b) => String(b.ratedAt).localeCompare(String(a.ratedAt)));
+}
+
+export async function applyRemoteExerciseRatings(userId, records) {
+  const existing = await readJson(key(userId, 'exerciseRatings'), []);
+  const byId = new Map(existing.map(record => [record.id, record]));
+  for (const record of records) byId.set(record.id, record);
+  await writeJson(key(userId, 'exerciseRatings'), [...byId.values()]);
 }

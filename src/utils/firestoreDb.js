@@ -43,6 +43,9 @@ import {
   addLocalBodyMetric,
   fetchLocalBodyMetrics,
   applyRemoteBodyMetrics,
+  saveLocalExerciseRating,
+  fetchLocalRatingsForExercise,
+  applyRemoteExerciseRatings,
 } from './offlineStore';
 
 // ─── Collection path helpers ──────────────────────────────────────────────────
@@ -361,7 +364,7 @@ export async function fetchCustomExercises(userId) {
  */
 export async function createCustomExercise(userId, id, name, muscle, steps = [], tips = []) {
   if (!userId) throw new Error('Cannot create a custom exercise without a signed-in user.');
-  await createLocalCustomExercise(userId, id, name, muscle);
+  await createLocalCustomExercise(userId, id, name, muscle, steps, tips);
   syncSoon(userId);
 }
 
@@ -453,7 +456,8 @@ export async function fetchExerciseHistory(userId, exerciseId) {
 // ─── Exercise Ratings ─────────────────────────────────────────────────────────
 
 /**
- * Persist a single exercise rating to Firestore.
+ * Persist a single exercise rating.
+ * Saves locally first (offline-safe), then triggers a background sync.
  */
 export async function saveExerciseRating(userId, {
   exerciseId,
@@ -464,42 +468,55 @@ export async function saveExerciseRating(userId, {
 }) {
   const id = generateId();
 
-  await setDoc(ratingDoc(userId, id), {
+  await saveLocalExerciseRating(userId, {
+    id,
     exerciseId,
     exerciseName,
     workoutId,
-    rating,                            // 1-5 integer
-    comment: comment.trim() || null,  // null when omitted — saves storage
-    ratedAt: serverTimestamp(),
-    createdAt: serverTimestamp(),
+    rating,
+    comment,
   });
 
+  syncSoon(userId);
   return id;
 }
 
 /**
  * Fetch all ratings for a given exercise, newest first.
+ * Returns locally-cached ratings when available; falls back to Firestore.
  */
 export async function fetchRatingsForExercise(userId, exerciseId) {
-  const q = query(
-    ratingCol(userId),
-    where('exerciseId', '==', exerciseId),
-    orderBy('ratedAt', 'desc')
-  );
+  const local = await fetchLocalRatingsForExercise(userId, exerciseId);
+  if (local.length > 0) {
+    syncSoon(userId);
+    return local;
+  }
 
-  const snap = await getDocs(q);
-  return snap.docs.map(d => {
-    const data = d.data();
-    return {
-      id: d.id,
-      exerciseId: data.exerciseId,
-      exerciseName: data.exerciseName,
-      workoutId: data.workoutId,
-      rating: data.rating,
-      comment: data.comment ?? null,
-      ratedAt: data.ratedAt?.toDate?.()?.toISOString() ?? null,
-    };
-  });
+  try {
+    const q = query(
+      ratingCol(userId),
+      where('exerciseId', '==', exerciseId),
+      orderBy('ratedAt', 'desc')
+    );
+
+    const snap = await getDocs(q);
+    const remote = snap.docs.map(d => {
+      const data = d.data();
+      return {
+        id: d.id,
+        exerciseId: data.exerciseId,
+        exerciseName: data.exerciseName,
+        workoutId: data.workoutId,
+        rating: data.rating,
+        comment: data.comment ?? null,
+        ratedAt: data.ratedAt?.toDate?.()?.toISOString() ?? null,
+      };
+    });
+    await applyRemoteExerciseRatings(userId, remote);
+    return remote;
+  } catch {
+    return local;
+  }
 }
 
 // ─── Shared utility ───────────────────────────────────────────────────────────

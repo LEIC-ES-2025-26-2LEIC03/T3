@@ -2,6 +2,7 @@ import NetInfo from '@react-native-community/netinfo';
 import { setDoc } from 'firebase/firestore';
 import { syncPendingWorkouts, startSyncOnReconnect } from '../../src/services/syncService';
 import { getPendingSyncQueue, markSynced, markConflict } from '../../src/utils/db';
+import { getPendingOfflineOps, markOfflineOpSynced, markOfflineOpFailed } from '../../src/utils/offlineStore';
 
 jest.mock('@react-native-community/netinfo', () => ({
   fetch: jest.fn(),
@@ -12,6 +13,12 @@ jest.mock('../../src/utils/db', () => ({
   getPendingSyncQueue: jest.fn(),
   markSynced: jest.fn(() => Promise.resolve()),
   markConflict: jest.fn(() => Promise.resolve()),
+}));
+
+jest.mock('../../src/utils/offlineStore', () => ({
+  getPendingOfflineOps: jest.fn(),
+  markOfflineOpSynced: jest.fn(() => Promise.resolve()),
+  markOfflineOpFailed: jest.fn(() => Promise.resolve()),
 }));
 
 const queuedWorkout = {
@@ -37,11 +44,26 @@ const queuedWorkout = {
   }),
 };
 
+const queuedTemplate = {
+  id: 8,
+  table_name: 'templates',
+  row_id: 'template-queued-1',
+  operation: 'upsert',
+  attempts: 0,
+  payload: JSON.stringify({
+    id: 'template-queued-1',
+    name: 'Queued Push',
+    tag: 'Push',
+    exerciseIds: ['bench-press'],
+  }),
+};
+
 describe('US-89 reconnect sync integration', () => {
   beforeEach(() => {
     jest.clearAllMocks();
     NetInfo.fetch.mockResolvedValue({ isConnected: true });
     getPendingSyncQueue.mockResolvedValue([queuedWorkout]);
+    getPendingOfflineOps.mockResolvedValue([]);
   });
 
   it('drains queued offline workouts into Firestore and marks them synced', async () => {
@@ -55,6 +77,63 @@ describe('US-89 reconnect sync integration', () => {
       7
     );
     expect(markConflict).not.toHaveBeenCalled();
+  });
+
+  it('syncs custom exercise instructions and tips from offline queue', async () => {
+    getPendingOfflineOps.mockResolvedValueOnce([
+      {
+        id: 'offline-custom-1',
+        tableName: 'custom_exercises',
+        rowId: 'custom-row',
+        operation: 'upsert',
+        payload: {
+          name: 'Backpack row',
+          muscle: 'Back',
+          steps: ['Step 1'],
+          tips: ['Tip 1'],
+        },
+        attempts: 0,
+      },
+    ]);
+
+    await syncPendingWorkouts('user-001');
+
+    expect(setDoc.mock.calls).toEqual(
+      expect.arrayContaining([
+        expect.arrayContaining([
+          undefined,
+          expect.objectContaining({
+            name: 'Backpack row',
+            muscle: 'Back',
+            steps: ['Step 1'],
+            tips: ['Tip 1'],
+          }),
+          { merge: true },
+        ]),
+      ])
+    );
+    expect(markOfflineOpSynced).toHaveBeenCalledWith('user-001', 'offline-custom-1');
+  });
+
+  it('syncs queued templates back to Firestore', async () => {
+    getPendingSyncQueue.mockResolvedValueOnce([queuedTemplate]);
+
+    await syncPendingWorkouts('user-001');
+
+    expect(setDoc.mock.calls).toEqual(
+      expect.arrayContaining([
+        expect.arrayContaining([
+          undefined,
+          expect.objectContaining({
+            name: 'Queued Push',
+            tag: 'Push',
+            exerciseIds: ['bench-press'],
+          }),
+          { merge: true },
+        ]),
+      ])
+    );
+    expect(markSynced).toHaveBeenCalledWith('user-001', 'templates', 'template-queued-1', 8);
   });
 
   it('does not drain the queue while offline', async () => {

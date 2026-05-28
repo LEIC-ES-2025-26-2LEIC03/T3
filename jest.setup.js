@@ -33,3 +33,15 @@ jest.mock('react-native-chart-kit', () => {
     }),
   };
 }, { virtual: true });
+
+jest.mock('expo-notifications', () => ({
+  setNotificationHandler: jest.fn(),
+  getPermissionsAsync: jest.fn(() => Promise.resolve({ status: 'granted' })),
+  requestPermissionsAsync: jest.fn(() => Promise.resolve({ status: 'granted' })),
+  scheduleNotificationAsync: jest.fn(),
+  cancelScheduledNotificationAsync: jest.fn()
+}));
+
+jest.mock('expo-haptics', () => ({
+  notificationAsync: jest.fn()
+}));

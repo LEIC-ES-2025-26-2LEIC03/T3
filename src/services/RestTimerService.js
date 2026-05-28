@@ -1,39 +1,55 @@
-import * as Notifications from 'expo-notifications';
 import * as Haptics from 'expo-haptics';
 import { Platform, Vibration } from 'react-native';
 
-// ─── Notification handler (foreground) ───────────────────────────────────────
-// Show alert + sound even when the app is in the foreground so the user gets
-// notified if they background the app mid-rest and then return.
-Notifications.setNotificationHandler({
-  handleNotification: async () => ({
-    shouldShowAlert: true,
-    shouldPlaySound: true,
-    shouldSetBadge: false,
-  }),
-});
+// ─── Safe Notifications Import ────────────────────────────────────────────────
+let Notifications = null;
+try {
+  Notifications = require('expo-notifications');
+  
+  // Show alert + sound even when the app is in the foreground
+  Notifications.setNotificationHandler({
+    handleNotification: async () => ({
+      shouldShowAlert: true,
+      shouldPlaySound: true,
+      shouldSetBadge: false,
+    }),
+  });
+} catch (e) {
+  console.warn('Notifications module unavailable (Android Expo Go):', e.message);
+}
 
 // ─── Permission request ───────────────────────────────────────────────────────
 
 export async function requestNotificationPermissions() {
-  const { status: existing } = await Notifications.getPermissionsAsync();
-  if (existing === 'granted') return true;
+  if (!Notifications) return false;
+  try {
+    const { status: existing } = await Notifications.getPermissionsAsync();
+    if (existing === 'granted') return true;
 
-  const { status } = await Notifications.requestPermissionsAsync();
-  return status === 'granted';
+    const { status } = await Notifications.requestPermissionsAsync();
+    return status === 'granted';
+  } catch (e) {
+    console.warn('Notifications permission check failed:', e.message);
+    return false;
+  }
 }
 
 // ─── Notification channel (Android) ──────────────────────────────────────────
 
 export async function setupNotificationChannel() {
+  if (!Notifications) return;
   if (Platform.OS === 'android') {
-    await Notifications.setNotificationChannelAsync('rest-timer', {
-      name: 'Rest Timer',
-      importance: Notifications.AndroidImportance.HIGH,
-      vibrationPattern: [0, 400, 200, 400],
-      enableVibrate: true,
-      sound: 'default',
-    });
+    try {
+      await Notifications.setNotificationChannelAsync('rest-timer', {
+        name: 'Rest Timer',
+        importance: Notifications.AndroidImportance.HIGH,
+        vibrationPattern: [0, 400, 200, 400],
+        enableVibrate: true,
+        sound: 'default',
+      });
+    } catch (e) {
+      console.warn('Notification channel setup failed:', e.message);
+    }
   }
 }
 
@@ -42,6 +58,7 @@ export async function setupNotificationChannel() {
 let _scheduledNotificationId = null;
 
 export async function scheduleRestNotification(seconds) {
+  if (!Notifications) return null;
   // Always cancel any existing notification first to avoid duplicates
   await cancelRestNotification();
 
@@ -91,6 +108,7 @@ export async function scheduleRestNotification(seconds) {
 }
 
 export async function cancelRestNotification() {
+  if (!Notifications) return;
   if (_scheduledNotificationId) {
     try {
       await Notifications.cancelScheduledNotificationAsync(_scheduledNotificationId);

@@ -25,6 +25,7 @@ jest.mock('../../src/utils/id', () => ({
 
 jest.mock('../../src/utils/firestoreDb', () => ({
   fetchCustomExercises: jest.fn(),
+  fetchFavourites: jest.fn(() => Promise.resolve(new Set())),
   createCustomExercise: jest.fn(),
   deleteCustomExercise: jest.fn(),
 }));
@@ -60,7 +61,9 @@ describe('US-04 | Exercise Library acceptance tests', () => {
         'user-001',
         'custom-exercise-001',
         'Cable crunch custom',
-        'Core'
+        'Core',
+        [],
+        []
       );
       expect(getByText('Cable crunch custom')).toBeTruthy();
     });

@@ -29,6 +29,8 @@ jest.mock('../../src/utils/firestoreDb', () => ({
   fetchCustomExercises: jest.fn(),
   createCustomExercise: jest.fn(),
   deleteCustomExercise: jest.fn(),
+  fetchFavourites: jest.fn(() => Promise.resolve(new Set())),
+  toggleFavourite: jest.fn(),
 }));
 
 jest.spyOn(Alert, 'alert').mockImplementation(() => {});
@@ -95,7 +97,9 @@ describe('US-04 | Exercise Library integration tests', () => {
         'user-001',
         'custom-exercise-001',
         'My Row',
-        'Back'
+        'Back',
+        [],
+        []
       );
       expect(getByText('My Row')).toBeTruthy();
     });

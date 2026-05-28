@@ -8,6 +8,7 @@ module.exports = {
   })),
   getReactNativePersistence: jest.fn(),
   initializeFirestore: jest.fn(() => ({})),
+  getFirestore: jest.fn(() => ({})),
   memoryLocalCache: jest.fn(() => ({})),
   persistentLocalCache: jest.fn(),
   persistentMultipleTabManager: jest.fn(),
