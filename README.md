@@ -437,11 +437,11 @@ You can find below information and references related with the project managemen
 
 **Beggining**
 
-![]()
+![](docs/sprint_planning/begin_sprint3.jpeg)
 
 **End**
 
-![]()
+![](docs/sprint_planning/end_sprint3.png)
 
 **Did well**
 - Implemented a wide variety of new features

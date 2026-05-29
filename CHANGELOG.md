@@ -34,3 +34,13 @@
 - Workout streak tracking to encourage consistency
 - Ability to favorite exercises for quicker access
 - Custom exercise creation in the exercise library
+
+
+## v3.0.0 — Spprint 3
+
+### Added
+- Offline mode with local persistence for key workout and profile data
+- Fully customizable rest timer with notifications during workouts
+- Exercise rating workflow after completing workouts
+- Total volume tracking and estimated 1RM insights in exercise history
+- Password recovery flow for account access
