@@ -421,15 +421,6 @@ You can find below information and references related with the project managemen
 **Improvements for Sprint 3**
 - Improve communication to ensure the best overall performance. 
 
-#### Review
-
-- Major improvements in planning in relation to sprint 1, which allowed for more and better work to be done.
-
-AI Usage:
-
-Throughout our project, we have been faced with multiple situations where the use of LLMs and other kinds of AI was useful. We used both online LLMs, namely Claude and ChatGPT, to help us with certain decisions regarding what would work better when it came to specific design choices, and also integrated LLMs in IDEs to automate repetitive and redundant tasks like creating tests for already implemented features of our application, and even assisting with the implementation of certain features when they were more straightforward or boilerplate in nature.
-However, all generated content and suggestions were always reviewed, adapted, and validated by the team before being integrated into the final project. AI tools were mainly used as productivity aid and to speed up development in areas where they could reduce manual work without replacing the decision-making, design and implementation process carried out by the group.
-
 ### Features Added
 
 - Account creation and Session related procedures
@@ -437,6 +428,52 @@ However, all generated content and suggestions were always reviewed, adapted, an
 - Favourite Exercises and Workout Streak
 - Workout Tracker and Workout Log
 - Create new Exercises
+
+#### Review
+
+- Major improvements in planning in relation to sprint 1, which allowed for more and better work to be done.
+
+### Sprint 3
+
+**Beggining**
+
+![]()
+
+**End**
+
+![]()
+
+**Did well**
+- Implemented a wide variety of new features
+- Maintained good communication in the group.
+- Good Solid Code
+- Everything on the Sprint Backlog was implemented
+- Implemented both unit and acceptance tests
+- Kept updated documentation
+- Used pull and merge requests properly
+
+**Puzzles**
+- Using notifications and vibration.
+
+### Features Added
+
+- Offline mode.
+- Fully implemented and easily customizable rest timer.
+- Exercise Rating.
+- Total volume tracking.
+- 1RM functionality.
+- Password Recovery.
+- More monitoring related functionalities.
+
+
+#### Review
+
+- Major improvements in communication in relation to sprint 2, which allowed for more and better work to be done throughout the sprint.
+
+### AI Usage
+
+Throughout our project, we have been faced with multiple situations where the use of LLMs and other kinds of AI was useful. We used both online LLMs, namely Claude and ChatGPT, to help us with certain decisions regarding what would work better when it came to specific design choices, and also integrated LLMs in IDEs to automate repetitive and redundant tasks like creating tests for already implemented features of our application, and even assisting with the implementation of certain features when they were more straightforward or boilerplate in nature.
+However, all generated content and suggestions were always reviewed, adapted, and validated by the team before being integrated into the final project. AI tools were mainly used as productivity aid and to speed up development in areas where they could reduce manual work without replacing the decision-making, design and implementation process carried out by the group.
 
 ### Setup Guide
 
@@ -493,8 +530,6 @@ However, all generated content and suggestions were always reviewed, adapted, an
   The code should now all be functional and you should be able to run it by running on the project root:
 
   npx expo start or npx expo start --tunnel (if you can't connect via LAN)
-
-### Sprint 3
 
 ### Sprint 4
 

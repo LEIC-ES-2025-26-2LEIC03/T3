@@ -19,14 +19,21 @@ export default function RestTimerModal({ visible, duration, onClose }) {
   const [secondsLeft, setSecondsLeft]           = useState(duration ?? 10);
   const [selectedDuration, setSelectedDuration] = useState(duration ?? 10);
   const [finished, setFinished]                 = useState(false);
+  const [isPaused, setIsPaused]                 = useState(false);
 
   // Bumping this counter is the only way to (re)start the countdown effect.
   // It avoids the stale-closure / deps problem entirely: any code that wants
   // a fresh interval just increments this value.
   const [tickKey, setTickKey] = useState(0);
 
-  const intervalRef = useRef(null);
-  const pulseAnim   = useRef(new Animated.Value(1)).current;
+  const intervalRef  = useRef(null);
+  const pulseAnim    = useRef(new Animated.Value(1)).current;
+  // Ref mirror of secondsLeft — lets handlePause read the current value
+  // without needing it in a useCallback dep array (which would cause stale closures).
+  const secondsRef   = useRef(secondsLeft);
+
+  // Keep the ref in sync with state on every render.
+  useEffect(() => { secondsRef.current = secondsLeft; }, [secondsLeft]);
 
   // ── Reset when the modal opens (or the caller changes the duration) ────────
   useEffect(() => {
@@ -37,14 +44,18 @@ export default function RestTimerModal({ visible, duration, onClose }) {
     setSecondsLeft(d);
     setSelectedDuration(d);
     setFinished(false);
+    setIsPaused(false);
     setTickKey(k => k + 1);
   }, [visible, duration]);
 
   // ── Countdown tick ─────────────────────────────────────────────────────────
-  // Keyed on `tickKey` so any call to setTickKey restarts this effect cleanly,
-  // independent of whether `finished` or `visible` changed.
+  // Keyed on `tickKey` so any call to setTickKey restarts this effect cleanly.
+  // Also gated on `isPaused` — clearing the interval while paused freezes the display.
   useEffect(() => {
-    if (!visible || finished) return;
+    if (!visible || finished || isPaused) {
+      clearInterval(intervalRef.current);
+      return;
+    }
 
     clearInterval(intervalRef.current);
     intervalRef.current = setInterval(() => {
@@ -61,7 +72,7 @@ export default function RestTimerModal({ visible, duration, onClose }) {
 
     return () => clearInterval(intervalRef.current);
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [visible, finished, tickKey]);
+  }, [visible, finished, isPaused, tickKey]);
 
   // ── Pulse animation when finished ─────────────────────────────────────────
   useEffect(() => {
@@ -94,6 +105,7 @@ export default function RestTimerModal({ visible, duration, onClose }) {
     setSelectedDuration(secs);
     setSecondsLeft(secs);
     setFinished(false);
+    setIsPaused(false);
     setTickKey(k => k + 1); // restarts the countdown effect
 
     await cancelRestNotification();
@@ -102,6 +114,7 @@ export default function RestTimerModal({ visible, duration, onClose }) {
 
   // User taps +15s / +30s / +60s.
   // Must: add time to the running countdown AND push the notification out.
+  // Works whether the timer is running, paused, or finished.
   const handleAddTime = useCallback((extraSecs) => {
     setSecondsLeft(prev => {
       const next = prev + extraSecs;
@@ -114,9 +127,27 @@ export default function RestTimerModal({ visible, duration, onClose }) {
     // If the timer had already finished, restart it.
     if (finished) {
       setFinished(false);
+      setIsPaused(false);
       setTickKey(k => k + 1);
     }
   }, [finished]);
+
+  // Pause: stop the interval and cancel the background notification so it
+  // doesn't fire while the user is deliberately resting longer.
+  const handlePause = useCallback(async () => {
+    clearInterval(intervalRef.current);
+    setIsPaused(true);
+    await cancelRestNotification();
+  }, []);
+
+  // Resume: flip isPaused off (the tick effect will restart the interval) and
+  // reschedule the notification for however many seconds are left.
+  const handleResume = useCallback(async () => {
+    setIsPaused(false);
+    // secondsRef.current holds the value at the moment of the press, before
+    // any re-render, so the notification is scheduled for the correct duration.
+    await scheduleRestNotification(secondsRef.current);
+  }, []);
 
   // ── Derived display values ─────────────────────────────────────────────────
 
@@ -185,6 +216,7 @@ export default function RestTimerModal({ visible, duration, onClose }) {
               styles.timerRing,
               isLow    && styles.timerRingLow,
               finished && styles.timerRingFinished,
+              isPaused && styles.timerRingPaused,
             ]}>
               <Text style={[
                 styles.timerText,
@@ -193,7 +225,9 @@ export default function RestTimerModal({ visible, duration, onClose }) {
               ]}>
                 {finished ? "Let's go!" : timeString}
               </Text>
-              {!finished && <Text style={styles.timerSub}>rest</Text>}
+              {!finished && (
+                <Text style={styles.timerSub}>{isPaused ? 'paused' : 'rest'}</Text>
+              )}
             </View>
           </Animated.View>
 
@@ -222,6 +256,18 @@ export default function RestTimerModal({ visible, duration, onClose }) {
                 </TouchableOpacity>
               ))}
             </View>
+          )}
+
+          {/* ── Pause / Resume button ── */}
+          {!finished && (
+            <TouchableOpacity
+              style={[styles.pauseBtn, isPaused && styles.pauseBtnActive]}
+              onPress={isPaused ? handleResume : handlePause}
+            >
+              <Text style={[styles.pauseBtnText, isPaused && styles.pauseBtnTextActive]}>
+                {isPaused ? '▶  Resume' : '⏸  Pause'}
+              </Text>
+            </TouchableOpacity>
           )}
 
           {/* ── Skip / Done button ── */}
@@ -339,6 +385,9 @@ const styles = StyleSheet.create({
     borderColor: '#C8FF00',
     backgroundColor: 'rgba(200,255,0,0.06)',
   },
+  timerRingPaused: {
+    borderColor: '#888888',
+  },
   timerText: {
     fontSize: 48,
     fontWeight: '900',
@@ -386,7 +435,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 10,
-    marginBottom: 24,
+    marginBottom: 16,
   },
   addTimeLabel: {
     color: '#444',
@@ -406,6 +455,31 @@ const styles = StyleSheet.create({
     color: '#888',
     fontSize: 13,
     fontWeight: '700',
+  },
+
+  // Pause / Resume
+  pauseBtn: {
+    width: '100%',
+    paddingVertical: 13,
+    borderRadius: 14,
+    backgroundColor: '#1E1E1E',
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: '#2A2A2A',
+    marginBottom: 12,
+  },
+  pauseBtnActive: {
+    backgroundColor: 'rgba(200,255,0,0.08)',
+    borderColor: '#C8FF00',
+  },
+  pauseBtnText: {
+    color: '#666',
+    fontSize: 14,
+    fontWeight: '700',
+    letterSpacing: 0.3,
+  },
+  pauseBtnTextActive: {
+    color: '#C8FF00',
   },
 
   // Skip / done
