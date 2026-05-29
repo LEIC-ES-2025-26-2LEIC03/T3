@@ -75,7 +75,7 @@ jobs:
         with:
           name: W8-APK
           path: android/app/build/outputs/apk/release/W8-*.apk
-          retention-days: 30
+          retention-days: 7
 
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v2
