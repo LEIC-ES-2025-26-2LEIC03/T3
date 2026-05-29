@@ -35,7 +35,9 @@ describe('Full offline app acceptance behavior', () => {
       'user-offline',
       'custom-row',
       'Backpack row',
-      'Back'
+      'Back',
+      ['Step 1', 'Step 2'],
+      ['Tip 1']
     );
 
     await addBodyMetric('user-offline', {
@@ -53,7 +55,12 @@ describe('Full offline app acceptance behavior', () => {
     });
     await expect(fetchFavourites('user-offline')).resolves.toEqual(new Set(['bench-press']));
     await expect(fetchCustomExercises('user-offline')).resolves.toEqual([
-      expect.objectContaining({ id: 'custom-row', name: 'Backpack row' }),
+      expect.objectContaining({
+        id: 'custom-row',
+        name: 'Backpack row',
+        steps: ['Step 1', 'Step 2'],
+        tips: ['Tip 1'],
+      }),
     ]);
     await expect(fetchBodyMetrics('user-offline')).resolves.toEqual([
       expect.objectContaining({ id: 'metric-1', weightKg: 82 }),

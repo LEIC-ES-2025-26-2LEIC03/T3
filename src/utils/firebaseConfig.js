@@ -19,8 +19,9 @@
 //   Store these in a .env file and load with expo-constants.
 //   Never commit real API keys to git.
 
+import { Platform } from 'react-native';
 import { initializeApp, getApps, getApp } from 'firebase/app';
-import { initializeFirestore, persistentLocalCache, getFirestore } from 'firebase/firestore';
+import { initializeFirestore, persistentLocalCache, memoryLocalCache, getFirestore } from 'firebase/firestore';
 import { initializeAuth, getReactNativePersistence } from 'firebase/auth';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
@@ -42,8 +43,10 @@ export const auth = initializeAuth(app, {
 });
 
 // Guard against double-init on Expo hot reload (same pattern as initializeApp above)
+const firestoreCache = Platform.OS === 'web' ? persistentLocalCache() : memoryLocalCache();
+
 export const db = getApps().length === 1
-  ? initializeFirestore(app, { localCache: persistentLocalCache() })
+  ? initializeFirestore(app, { localCache: firestoreCache })
   : getFirestore(app);
 
 export default app;

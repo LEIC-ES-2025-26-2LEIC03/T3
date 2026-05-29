@@ -58,6 +58,12 @@ describe('startFreeWorkout Integration Tests', () => {
       );
     });
 
+    // Skip the rating modal for the added exercise
+    await waitFor(() => {
+      expect(getByText('Skip')).toBeTruthy();
+    });
+    fireEvent.press(getByText('Skip'));
+
     expect(mockNavigate).toHaveBeenCalledWith('HistoryTab');
   });
 });
