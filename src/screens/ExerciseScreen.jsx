@@ -328,15 +328,35 @@ export default function ExerciseHistoryScreen({ navigation, route }) {
               // Compute Y labels manually for the overlay to prevent line overlap
               const min = Math.min(...data);
               const max = Math.max(...data);
-              const range = max === min ? 1 : (max - min);
-              const decimalPlaces = title.includes('Repetitions') ? 0 : 0;
-              const yLabels = [
-                max,
-                min + range * 0.75,
-                min + range * 0.5,
-                min + range * 0.25,
-                min
-              ];
+              
+              // Handle case where all values are the same
+              let displayMin, displayMax;
+              if (min === max) {
+                const value = min;
+                if (value === 0) {
+                  displayMin = 0;
+                  displayMax = 5;
+                } else {
+                  // Expand range by 30% or at least ±1
+                  const padding = Math.max(Math.abs(value) * 0.3, 1);
+                  displayMin = Math.max(0, value - padding);
+                  displayMax = value + padding;
+                }
+              } else {
+                // Add 10% padding on each side
+                const range = max - min;
+                const padding = range * 0.1;
+                displayMin = Math.max(0, min - padding);
+                displayMax = max + padding;
+              }
+              
+              const decimalPlaces = 0;
+              const step = (displayMax - displayMin) / 4;
+              
+              const yLabels = Array.from({ length: 5 }, (_, i) => {
+                const value = displayMax - (step * i);
+                return Math.round(value * Math.pow(10, decimalPlaces)) / Math.pow(10, decimalPlaces);
+              });
 
               return (
                 <View style={styles.chartWrapper} key={title}>
