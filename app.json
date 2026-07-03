@@ -1,6 +1,6 @@
 {
   "expo": {
-    "name": "",
+    "name": "W8",
     "slug": "W8",
     "version": "1.0.0",
     "orientation": "portrait",
@@ -30,6 +30,11 @@
     },
     "plugins": [
       "expo-sqlite"
-    ]
+    ],
+    "extra": {
+      "eas": {
+        "projectId": "963b5f14-28a6-4815-8a1b-b293ed883964"
+      }
+    }
   }
 }

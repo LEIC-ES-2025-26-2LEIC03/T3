@@ -533,4 +533,15 @@ However, all generated content and suggestions were always reviewed, adapted, an
 
 ### Sprint 4
 
+### Pitch
+
+Olá a todos.
+Imagino que muitos de vocês já frequentem um ginásio ou estejam a pensar começar a treinar. No entanto, para muitas pessoas, uma das maiores dificuldades é saber que exercícios fazer, como os executar corretamente e como acompanhar a sua evolução ao longo do tempo.
+Foi precisamente para resolver esse problema que criámos a W8.
+A W8 é uma aplicação de registo e acompanhamento de treinos que torna a jornada de fitness mais simples e organizada. Assim que o utilizador entra na aplicação, tem acesso a vários planos de treino pré-definidos, completos e prontos a utilizar, acompanhados de instruções para cada exercício.
+Durante o treino, é possível registar pesos, séries e repetições de forma rápida e intuitiva. Todos esses dados ficam guardados, permitindo consultar o histórico de treinos e acompanhar a evolução ao longo do tempo.
+Além disso, a aplicação permite acompanhar objetivos de ganho ou perda de peso e disponibiliza estatísticas detalhadas para cada exercício, incluindo recordes pessoais, gráficos de progresso e estimativas de uma repetição máxima.
+Quer seja para quem está a começar ou para quem procura uma forma mais eficaz de monitorizar o seu desempenho, a W8 reúne todas as ferramentas necessárias num único local.
+Obrigado pela vossa atenção. 
+
 ### Final Release
